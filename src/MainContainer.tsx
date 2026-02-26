@@ -1,7 +1,7 @@
 import React from "react";
 import { ChevronRight, Download, ArrowLeft, Loader2 } from "lucide-react";
 import { useEpub } from "./Store/EpubContext";
-import { injectCoverAndDownload } from "./Utils/EpubDownloader";
+import { downloadBlob } from "./Utils/EpubDownloader";
 
 const steps = [
   { id: 0, title: "Upload & Clean" },
@@ -9,20 +9,9 @@ const steps = [
   { id: 2, title: "Metadata & Final" },
 ];
 
-// ── crossOrigin সহ image load helper ─────────────────────────────────────
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
-}
-
 export const MainContainer = ({ children }: { children: React.ReactNode }) => {
   const { state, dispatch } = useEpub();
-  const { currentStep, originalFile, coverImage, processedBlob } = state;
+  const { currentStep, originalFile, processedBlob } = state;
   const [isDownloading, setIsDownloading] = React.useState(false);
 
   const handleNext = () =>
@@ -31,84 +20,31 @@ export const MainContainer = ({ children }: { children: React.ReactNode }) => {
   const handleBack = () =>
     dispatch({ type: "SET_STEP", payload: currentStep - 1 });
 
-  // ── কভার ছাড়া সরাসরি download ────────────────────────────────────────
+  // ── কভার ছাড়া download (Step 1) ──────────────────────────────────────
   const handleNoCoverDownload = () => {
     if (!processedBlob) {
       alert("আগে ফাইলটি প্রসেস হতে দিন!");
       return;
     }
-    const url = URL.createObjectURL(processedBlob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `Split_Book_No_Cover.epub`;
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(processedBlob, "Split_Book_No_Cover");
   };
 
-  // ── Final download: cover + logo composite করে inject ────────────────
+  // ── Final download (Step 2) ───────────────────────────────────────────
+  // Cover CoverStep এ already inject হয়ে গেছে processedBlob এ
+  // তাই এখানে শুধু processedBlob download করলেই হবে
   const handleFinalDownload = async () => {
-    if (!originalFile || !coverImage) {
-      alert("প্রথমে file upload এবং cover select করুন!");
+    if (!processedBlob) {
+      alert("প্রথমে file upload করুন!");
       return;
     }
 
     setIsDownloading(true);
-
     try {
-      const canvas = document.createElement("canvas");
-      canvas.width = 395;
-      canvas.height = 632;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
-
-      // ১. Cover draw করা
-      const coverImg = await loadImage(coverImage);
-      ctx.drawImage(coverImg, 0, 0, 395, 632);
-
-      // ২. Logo draw করা (coverConfig থেকে settings নেওয়া)
-      const logoSrc =
-        state.coverConfig?.logoColor === "white"
-          ? "/boitoi_white.png"
-          : "/boitoi_blue.png";
-
-      try {
-        const logo = await loadImage(logoSrc);
-
-        const logoSizePercent = state.coverConfig?.logoSize || 18;
-        const margin = state.coverConfig?.margin || 18;
-        const logoWidth = (395 * logoSizePercent) / 100;
-        const logoHeight = (logo.naturalHeight / logo.naturalWidth) * logoWidth;
-
-        const x = 395 - logoWidth - margin;
-        const y =
-          state.coverConfig?.logoPosition === "top-right"
-            ? margin
-            : 632 - logoHeight - margin;
-
-        ctx.shadowColor = "rgba(0,0,0,0.25)";
-        ctx.shadowBlur = 12;
-        ctx.drawImage(logo, x, y, logoWidth, logoHeight);
-      } catch {
-        console.warn("Logo load failed, skipping logo overlay");
-      }
-
-      // ৩. Canvas থেকে blob বানিয়ে EPUB এ inject করা
-      canvas.toBlob(
-        async (blob) => {
-          if (blob) {
-            const title = state.metadata?.title || "Updated_Book";
-            await injectCoverAndDownload(originalFile, blob, title);
-          }
-          setIsDownloading(false);
-        },
-        "image/jpeg",
-        1.0,
-      );
+      const title = state.metadata?.title || "Updated_Book";
+      downloadBlob(processedBlob, title);
     } catch (error) {
       console.error("Download Error:", error);
+    } finally {
       setIsDownloading(false);
     }
   };
@@ -185,7 +121,7 @@ export const MainContainer = ({ children }: { children: React.ReactNode }) => {
             {currentStep === 2 ? (
               <button
                 onClick={handleFinalDownload}
-                disabled={isDownloading}
+                disabled={isDownloading || !processedBlob}
                 className="flex items-center gap-2 px-10 py-4 bg-green-600 text-white rounded-[20px] font-black shadow-xl shadow-green-200 hover:bg-green-700 active:scale-95 transition-all text-sm uppercase tracking-wider disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isDownloading ? (

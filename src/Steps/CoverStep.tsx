@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import {
   Image as ImageIcon,
@@ -10,8 +10,9 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useEpub } from "../Store/EpubContext";
+import { injectCoverIntoBlob } from "../Utils/EpubDownloader";
 
-// ── Transparent padding trim করার helper ──────────────────────────────────
+// ── Transparent padding trim helper ───────────────────────────────────────
 function getTrimmedBounds(logo: HTMLImageElement): {
   minX: number;
   minY: number;
@@ -49,7 +50,6 @@ function getTrimmedBounds(logo: HTMLImageElement): {
       minY = logo.naturalHeight,
       maxX = 0,
       maxY = 0;
-
     for (let y = 0; y < logo.naturalHeight; y++) {
       for (let x = 0; x < logo.naturalWidth; x++) {
         const alpha = pixels.data[(y * logo.naturalWidth + x) * 4 + 3];
@@ -62,14 +62,13 @@ function getTrimmedBounds(logo: HTMLImageElement): {
       }
     }
 
-    if (maxX === 0 && maxY === 0) {
+    if (maxX === 0 && maxY === 0)
       return {
         minX: 0,
         minY: 0,
         trimmedWidth: logo.naturalWidth,
         trimmedHeight: logo.naturalHeight,
       };
-    }
 
     return {
       minX,
@@ -87,7 +86,7 @@ function getTrimmedBounds(logo: HTMLImageElement): {
   }
 }
 
-// ── Image কে crossOrigin সহ load করার helper ─────────────────────────────
+// ── crossOrigin image load helper ─────────────────────────────────────────
 function loadImageWithCORS(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -103,24 +102,132 @@ function loadImageWithCORS(src: string): Promise<HTMLImageElement> {
   });
 }
 
+// ── Logo ছাড়া শুধু cover resize করে Blob বানানো (EPUB এর জন্য) ──────────
+async function buildPlainCoverBlob(coverUrl: string): Promise<Blob> {
+  const canvas = document.createElement("canvas");
+  canvas.width = 395;
+  canvas.height = 632;
+  const ctx = canvas.getContext("2d")!;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+
+  const coverImg = await loadImageWithCORS(coverUrl);
+  ctx.drawImage(coverImg, 0, 0, 395, 632);
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject("Blob failed")),
+      "image/jpeg",
+      1.0,
+    );
+  });
+}
+
+// ── Logo সহ thumbnail Blob বানানো (download এর জন্য) ─────────────────────
+async function buildThumbnailBlob(
+  coverUrl: string,
+  config: {
+    logoColor: string;
+    logoSize: number;
+    margin: number;
+    logoPosition: string;
+  },
+): Promise<Blob> {
+  const canvas = document.createElement("canvas");
+  canvas.width = 395;
+  canvas.height = 632;
+  const ctx = canvas.getContext("2d")!;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+
+  const coverImg = await loadImageWithCORS(coverUrl);
+  ctx.drawImage(coverImg, 0, 0, 395, 632);
+
+  try {
+    const logoSrc =
+      config.logoColor === "white" ? "/boitoi_white.png" : "/boitoi_blue.png";
+    const logo = await loadImageWithCORS(logoSrc);
+    const { minX, minY, trimmedWidth, trimmedHeight } = getTrimmedBounds(logo);
+
+    const logoWidth = (395 * (config.logoSize || 18)) / 100;
+    const logoHeight = (trimmedHeight / trimmedWidth) * logoWidth;
+    const margin = config.margin || 18;
+    const x = 395 - logoWidth - margin;
+    const y =
+      config.logoPosition === "top-right" ? margin : 632 - logoHeight - margin;
+
+    ctx.shadowColor = "rgba(0,0,0,0.25)";
+    ctx.shadowBlur = 12;
+    ctx.drawImage(
+      logo,
+      minX,
+      minY,
+      trimmedWidth,
+      trimmedHeight,
+      x,
+      y,
+      logoWidth,
+      logoHeight,
+    );
+  } catch {
+    console.warn("Logo load failed, skipping");
+  }
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject("Blob failed")),
+      "image/jpeg",
+      1.0,
+    );
+  });
+}
+
 const CoverStep = () => {
   const { state, dispatch } = useEpub();
-  const [previewUrl, setPreviewUrl] = useState<string | null>(state.coverImage); // স্টেট থেকে ইনিশিয়াল প্রিভিউ নেওয়া
+  const [previewUrl, setPreviewUrl] = useState<string | null>(
+    state.coverImage ?? null,
+  );
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isInjecting, setIsInjecting] = useState(false);
+
+  // ✅ Latest values সবসময় পাওয়ার জন্য useRef
+  const processedBlobRef = useRef<Blob | null>(state.processedBlob);
+  const coverConfigRef = useRef(state.coverConfig);
+
+  useEffect(() => {
+    processedBlobRef.current = state.processedBlob;
+  }, [state.processedBlob]);
+
+  useEffect(() => {
+    coverConfigRef.current = state.coverConfig;
+  }, [state.coverConfig]);
 
   const onDrop = useCallback(
-    (acceptedFiles: File[]) => {
+    async (acceptedFiles: File[]) => {
       const file = acceptedFiles[0];
-      if (file) {
-        const url = URL.createObjectURL(file);
-        setPreviewUrl(url);
+      if (!file) return;
 
-        // ফিক্স: এখানে SET_FILE এর বদলে SET_COVER_IMAGE ব্যবহার করতে হবে
-        // এতে অরিজিনাল ইপাব ফাইলটি রিপ্লেস হবে না
-        dispatch({
-          type: "SET_COVER_IMAGE",
-          payload: url,
-        });
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+      dispatch({ type: "SET_COVER_IMAGE", payload: url });
+
+      const currentBlob = processedBlobRef.current;
+
+      if (currentBlob) {
+        setIsInjecting(true);
+        try {
+          // ✅ EPUB এর জন্য logo ছাড়া plain cover
+          const plainCoverBlob = await buildPlainCoverBlob(url);
+          const updatedBlob = await injectCoverIntoBlob(
+            currentBlob,
+            plainCoverBlob,
+          );
+          dispatch({ type: "SET_PROCESSED_BLOB", payload: updatedBlob });
+        } catch (err) {
+          console.error("Cover injection failed:", err);
+        } finally {
+          setIsInjecting(false);
+        }
       }
     },
     [dispatch],
@@ -136,75 +243,21 @@ const CoverStep = () => {
     dispatch({ type: "UPDATE_COVER_CONFIG", payload: newConfig });
   };
 
-  // ── থাম্বনেইল জেনারেশন ─────────────────────────────────────────────────
+  // ── Thumbnail download — logo সহ ─────────────────────────────────────
   const handleDownloadThumbnail = async () => {
     if (!previewUrl) return;
     setIsGenerating(true);
-
     try {
-      const canvas = document.createElement("canvas");
-      canvas.width = 395;
-      canvas.height = 632;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
-
-      const coverImg = await loadImageWithCORS(previewUrl);
-      ctx.drawImage(coverImg, 0, 0, 395, 632);
-
-      const logoSrc =
-        state.coverConfig.logoColor === "white"
-          ? "/boitoi_white.png"
-          : "/boitoi_blue.png";
-
-      const logo = await loadImageWithCORS(logoSrc);
-
-      const { minX, minY, trimmedWidth, trimmedHeight } =
-        getTrimmedBounds(logo);
-
-      const logoSizePercent = state.coverConfig.logoSize || 18;
-      const logoWidth = (395 * logoSizePercent) / 100;
-      const logoHeight = (trimmedHeight / trimmedWidth) * logoWidth;
-      const margin = state.coverConfig.margin || 18;
-
-      const x = 395 - logoWidth - margin;
-      const y =
-        state.coverConfig.logoPosition === "top-right"
-          ? margin
-          : 632 - logoHeight - margin;
-
-      ctx.shadowColor = "rgba(0,0,0,0.25)";
-      ctx.shadowBlur = 12;
-      ctx.drawImage(
-        logo,
-        minX,
-        minY,
-        trimmedWidth,
-        trimmedHeight,
-        x,
-        y,
-        logoWidth,
-        logoHeight,
-      );
-
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) return;
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.download = `boitoi_${state.coverConfig.logoColor}_thumb.jpg`;
-          link.href = url;
-          link.click();
-          setTimeout(() => URL.revokeObjectURL(url), 100);
-          setIsGenerating(false);
-        },
-        "image/jpeg",
-        1.0,
-      );
+      const blob = await buildThumbnailBlob(previewUrl, state.coverConfig);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.download = `boitoi_${state.coverConfig.logoColor}_thumb.jpg`;
+      link.href = url;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 100);
     } catch (err) {
       console.error("Thumbnail generation failed:", err);
+    } finally {
       setIsGenerating(false);
     }
   };
@@ -220,13 +273,7 @@ const CoverStep = () => {
         <div
           {...getRootProps()}
           className={`relative aspect-[395/632] w-full max-w-[320px] mx-auto rounded-2xl border-2 border-dashed overflow-hidden flex items-center justify-center transition-all duration-200 shadow-2xl cursor-pointer
-            ${
-              previewUrl
-                ? "border-blue-400 ring-4 ring-blue-50"
-                : isDragActive
-                  ? "border-blue-500 bg-blue-50 scale-[1.02]"
-                  : "border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-300"
-            }`}
+            ${previewUrl ? "border-blue-400 ring-4 ring-blue-50" : isDragActive ? "border-blue-500 bg-blue-50 scale-[1.02]" : "border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-300"}`}
         >
           <input {...getInputProps()} />
 
@@ -237,6 +284,8 @@ const CoverStep = () => {
                 alt="Cover Preview"
                 className="w-full h-full object-cover"
               />
+
+              {/* Logo overlay — শুধু preview তে দেখাবে */}
               <div
                 className="absolute transition-all duration-200 pointer-events-none"
                 style={{
@@ -257,11 +306,23 @@ const CoverStep = () => {
                   className="w-full h-auto drop-shadow-xl"
                 />
               </div>
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <p className="text-white text-xs font-bold tracking-wide">
-                  Click to Change
-                </p>
-              </div>
+
+              {isInjecting && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                  <div className="flex flex-col items-center gap-2 text-white">
+                    <RefreshCw size={24} className="animate-spin" />
+                    <p className="text-xs font-bold">Injecting cover...</p>
+                  </div>
+                </div>
+              )}
+
+              {!isInjecting && (
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <p className="text-white text-xs font-bold tracking-wide">
+                    Click to Change
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3 text-gray-400 px-4">
@@ -283,7 +344,7 @@ const CoverStep = () => {
         {previewUrl && (
           <button
             onClick={handleDownloadThumbnail}
-            disabled={isGenerating}
+            disabled={isGenerating || isInjecting}
             className="w-full max-w-[320px] mx-auto flex items-center justify-center gap-2 bg-blue-600 text-white py-3.5 rounded-2xl font-bold text-sm hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isGenerating ? (
@@ -311,11 +372,7 @@ const CoverStep = () => {
                 key={color}
                 onClick={() => updateConfig({ logoColor: color })}
                 className={`flex-1 py-3 rounded-xl border-2 flex items-center justify-center gap-2 transition-all font-bold text-sm
-                  ${
-                    state.coverConfig.logoColor === color
-                      ? "border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-100"
-                      : "border-gray-100 bg-gray-50 text-gray-400 hover:border-gray-200"
-                  }`}
+                  ${state.coverConfig.logoColor === color ? "border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-100" : "border-gray-100 bg-gray-50 text-gray-400 hover:border-gray-200"}`}
               >
                 {state.coverConfig.logoColor === color && <Check size={15} />}
                 {color === "blue" ? "Blue" : "White"}
@@ -345,11 +402,7 @@ const CoverStep = () => {
                 key={pos.id}
                 onClick={() => updateConfig({ logoPosition: pos.id })}
                 className={`py-3 px-4 rounded-xl border-2 flex items-center justify-center gap-2 transition-all font-bold text-sm
-                  ${
-                    state.coverConfig.logoPosition === pos.id
-                      ? "border-blue-600 bg-blue-50 text-blue-700 shadow-sm"
-                      : "border-gray-100 bg-gray-50 text-gray-400 hover:border-gray-200"
-                  }`}
+                  ${state.coverConfig.logoPosition === pos.id ? "border-blue-600 bg-blue-50 text-blue-700 shadow-sm" : "border-gray-100 bg-gray-50 text-gray-400 hover:border-gray-200"}`}
               >
                 {state.coverConfig.logoPosition === pos.id ? (
                   <Check size={15} />
