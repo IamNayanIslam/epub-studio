@@ -29,11 +29,14 @@ export const epubReducer = (
     case "SET_STEP":
       return { ...state, currentStep: action.payload };
     case "SET_FILE":
+      // ✅ নতুন ফাইল আসলে আগের cover আর processedBlob reset হবে
       return {
         ...state,
         originalFile: action.payload.file,
         wordCount: action.payload.wordCount,
         missingPoints: action.payload.missing,
+        coverImage: null,
+        processedBlob: null,
       };
     case "SET_COVER_IMAGE":
       return { ...state, coverImage: action.payload };

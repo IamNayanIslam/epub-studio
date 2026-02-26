@@ -201,7 +201,11 @@ const CoverStep = () => {
   useEffect(() => {
     coverConfigRef.current = state.coverConfig;
   }, [state.coverConfig]);
-
+  useEffect(() => {
+    if (!state.coverImage) {
+      setPreviewUrl(null);
+    }
+  }, [state.coverImage]);
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
       const file = acceptedFiles[0];
@@ -251,7 +255,7 @@ const CoverStep = () => {
       const blob = await buildThumbnailBlob(previewUrl, state.coverConfig);
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.download = `boitoi_${state.coverConfig.logoColor}_thumb.jpg`;
+      link.download = `thumbnail.jpg`;
       link.href = url;
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 100);
