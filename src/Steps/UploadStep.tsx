@@ -23,8 +23,6 @@ const UploadStep = () => {
   const [customSplitCount, setCustomSplitCount] = useState<number>(0);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
-  // ── useCallback এর বাইরে রাখা হয়েছে — plain async function ────────
-  // এতে dependency issue হবে না
   const runSplitAndDispatch = async (
     file: File,
     splitConfig: { isManual: boolean; count: number },
@@ -48,13 +46,13 @@ const UploadStep = () => {
         setIsProcessing(false);
 
         if (result.status === "success") {
-          setIsSuccess(true);
-          setDetectedSplits(result.data.totalSplits);
+          // ✅ Fix: undefined হলে 0 fallback
+          const totalSplits: number = result.data.totalSplits ?? 0;
 
-          const splitConfig = {
-            isManual: true,
-            count: result.data.totalSplits,
-          };
+          setIsSuccess(true);
+          setDetectedSplits(totalSplits);
+
+          const splitConfig = { isManual: true, count: totalSplits };
 
           dispatch({
             type: "SET_FILE",
@@ -67,7 +65,7 @@ const UploadStep = () => {
 
           dispatch({
             type: "UPDATE_SPLIT_CONFIG",
-            payload: { isManual: true, splitCount: result.data.totalSplits },
+            payload: { isManual: true, splitCount: totalSplits },
           });
 
           await runSplitAndDispatch(file, splitConfig);
@@ -93,7 +91,7 @@ const UploadStep = () => {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [dispatch], // runSplitAndDispatch intentionally excluded — it's stable
+    [dispatch],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -114,13 +112,12 @@ const UploadStep = () => {
         payload: { isManual: false, splitCount: customSplitCount },
       });
     } else {
-      splitConfig = { isManual: true, count: showModal.data.totalSplits || 0 };
+      // ✅ Fix: undefined হলে 0 fallback
+      const totalSplits: number = showModal.data.totalSplits ?? 0;
+      splitConfig = { isManual: true, count: totalSplits };
       dispatch({
         type: "UPDATE_SPLIT_CONFIG",
-        payload: {
-          isManual: true,
-          splitCount: showModal.data.totalSplits || 0,
-        },
+        payload: { isManual: true, splitCount: totalSplits },
       });
     }
 
