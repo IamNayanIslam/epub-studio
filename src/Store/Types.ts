@@ -7,14 +7,17 @@ export interface CoverConfig {
 
 export interface Metadata {
   title: string;
-  author: string;
+  authorBengali: string; // dc:creator content — বাংলায়
+  authorFileAs: string; // opf:file-as — ইংরেজিতে
+  subjects: string; // comma separated — Romance, Drama
   publisher: string;
+  language: string; // default "bn"
 }
 
 export interface EpubState {
   currentStep: number;
   originalFile: File | null;
-  coverImage: string | null; // এটি নতুন যোগ করা হয়েছে
+  coverImage: string | null;
   processedBlob: Blob | null;
   wordCount: number;
   missingPoints: number[];

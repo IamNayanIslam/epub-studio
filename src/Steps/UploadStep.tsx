@@ -4,18 +4,18 @@ import { Upload, FileWarning, Loader2, CheckCircle2 } from "lucide-react";
 import { processEpubFile } from "../Utils/EpubProcessor";
 import { processAndSplitEpub } from "../Utils/EpubSplit";
 import { useEpub } from "../Store/EpubContext";
+import { useTheme, tokens } from "../Store/ThemeContext";
 
 interface ModalState {
   type: "missing-points" | "no-points";
-  data: {
-    wordCount: number;
-    missingPoints?: number[];
-    totalSplits?: number;
-  };
+  data: { wordCount: number; missingPoints?: number[]; totalSplits?: number };
 }
 
 const UploadStep = () => {
   const { dispatch } = useEpub();
+  const { isDark } = useTheme();
+  const t = isDark ? tokens.dark : tokens.light;
+
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [detectedSplits, setDetectedSplits] = useState<number | null>(null);
@@ -46,35 +46,25 @@ const UploadStep = () => {
         setIsProcessing(false);
 
         if (result.status === "success") {
-          // ✅ Fix: undefined হলে 0 fallback
           const totalSplits: number = result.data.totalSplits ?? 0;
-
           setIsSuccess(true);
           setDetectedSplits(totalSplits);
-
           const splitConfig = { isManual: true, count: totalSplits };
 
           dispatch({
             type: "SET_FILE",
-            payload: {
-              file,
-              wordCount: result.data.wordCount,
-              missing: [],
-            },
+            payload: { file, wordCount: result.data.wordCount, missing: [] },
           });
-
           dispatch({
             type: "UPDATE_SPLIT_CONFIG",
             payload: { isManual: true, splitCount: totalSplits },
           });
-
           await runSplitAndDispatch(file, splitConfig);
         } else if (result.status === "error") {
           const errorType = result.errorType as "missing-points" | "no-points";
           const suggestion = Math.ceil(result.data.wordCount / 1500);
           setCustomSplitCount(suggestion);
           setShowModal({ type: errorType, data: result.data });
-
           dispatch({
             type: "SET_FILE",
             payload: {
@@ -102,7 +92,6 @@ const UploadStep = () => {
 
   const handleModalAction = async () => {
     if (!showModal || !uploadedFile) return;
-
     let splitConfig: { isManual: boolean; count: number };
 
     if (showModal.type === "no-points") {
@@ -112,7 +101,6 @@ const UploadStep = () => {
         payload: { isManual: false, splitCount: customSplitCount },
       });
     } else {
-      // ✅ Fix: undefined হলে 0 fallback
       const totalSplits: number = showModal.data.totalSplits ?? 0;
       splitConfig = { isManual: true, count: totalSplits };
       dispatch({
@@ -122,49 +110,67 @@ const UploadStep = () => {
     }
 
     await runSplitAndDispatch(uploadedFile, splitConfig);
-
     setShowModal(null);
     dispatch({ type: "SET_STEP", payload: 1 });
   };
 
   return (
-    <div className="flex flex-col items-center justify-center p-10">
+    <div className="flex flex-col items-center justify-center p-6 sm:p-10">
       <div
         {...getRootProps()}
-        className={`w-full max-w-xl p-12 border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-500
-          ${isSuccess ? "border-green-500 bg-green-50 shadow-lg shadow-green-100" : isDragActive ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-blue-400"}`}
+        className={`w-full max-w-xl p-10 sm:p-14 border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-300
+          ${
+            isSuccess
+              ? t.dropzoneSuccess
+              : isDragActive
+                ? t.dropzoneActive
+                : t.dropzone
+          }`}
       >
         <input {...getInputProps()} />
-        <div className="flex flex-col items-center gap-4 text-center">
+        <div className="flex flex-col items-center gap-5 text-center">
           {isProcessing ? (
             <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
           ) : isSuccess ? (
             <CheckCircle2 className="w-12 h-12 text-green-500 animate-bounce" />
           ) : (
-            <Upload className="w-12 h-12 text-gray-400" />
+            <div
+              className={`w-16 h-16 rounded-2xl ${isDark ? "bg-[#252836]" : "bg-gray-100"} flex items-center justify-center`}
+            >
+              <Upload className={`w-7 h-7 ${t.textMuted}`} />
+            </div>
           )}
 
           <div
-            className={`text-lg font-medium ${isSuccess ? "text-green-800" : "text-gray-700"}`}
+            className={`text-base font-semibold ${isSuccess ? "text-green-500" : t.textSecondary}`}
           >
             {isProcessing ? (
-              "ফাইলটি বিশ্লেষণ করা হচ্ছে..."
+              <span className={t.textMuted}>ফাইলটি বিশ্লেষণ করা হচ্ছে...</span>
             ) : isSuccess ? (
               <div className="flex flex-col gap-2">
-                <span className="text-xl font-bold">
+                <span className="text-lg font-bold text-green-500">
                   সফলভাবে প্রসেস হয়েছে!
                 </span>
-                <span className="text-sm bg-green-200 px-4 py-1 rounded-full text-green-700 inline-block mx-auto font-bold">
+                <span
+                  className={`text-sm px-4 py-1 rounded-full font-bold inline-block mx-auto ${isDark ? "bg-green-900/30 text-green-400" : "bg-green-100 text-green-700"}`}
+                >
                   মোট {detectedSplits} টি স্প্লিট পয়েন্ট পাওয়া গেছে
                 </span>
               </div>
             ) : (
-              "Drag & drop EPUB file, or click to select"
+              <div className="space-y-1">
+                <p className={`font-bold ${t.textPrimary}`}>
+                  Drag & drop EPUB file
+                </p>
+                <p className={`text-sm ${t.textMuted}`}>or click to select</p>
+              </div>
             )}
           </div>
 
           {isSuccess && (
-            <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden mt-4">
+            <div
+              className={`w-full ${isDark ? "bg-[#2A2D3E]" : "bg-gray-200"} h-1 rounded-full overflow-hidden mt-2`}
+            >
               <div className="bg-green-500 h-full w-full origin-left animate-[progress_3s_linear]" />
             </div>
           )}
@@ -173,16 +179,22 @@ const UploadStep = () => {
 
       {/* ── Modal ── */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-8 rounded-3xl max-w-md w-full shadow-2xl border border-gray-100">
-            <h3 className="text-xl font-black flex items-center gap-2 mb-4 text-gray-800 uppercase tracking-tight">
-              <FileWarning className="text-amber-500" />
+        <div
+          className={`fixed inset-0 ${t.overlay} backdrop-blur-sm flex items-center justify-center p-4 z-50`}
+        >
+          <div
+            className={`${t.modal} border ${t.cardBorder} p-7 rounded-2xl max-w-md w-full shadow-2xl`}
+          >
+            <h3
+              className={`text-lg font-black flex items-center gap-2 mb-4 ${t.textPrimary} uppercase tracking-tight`}
+            >
+              <FileWarning className="text-amber-500" size={20} />
               {showModal.type === "missing-points"
                 ? "Split Points Missing"
                 : "No Split Points Found"}
             </h3>
 
-            <div className="text-gray-600 mb-6 leading-relaxed">
+            <div className={`${t.textSecondary} mb-6 leading-relaxed text-sm`}>
               {showModal.type === "missing-points" ? (
                 <div className="space-y-3">
                   <p>বইটিতে নিচের পয়েন্টগুলো পাওয়া যায়নি:</p>
@@ -190,28 +202,29 @@ const UploadStep = () => {
                     {showModal.data.missingPoints?.map((p) => (
                       <span
                         key={p}
-                        className="bg-red-50 text-red-600 px-2 py-1 rounded-md font-bold text-xs border border-red-100"
+                        className={`${t.tagBg} px-2 py-1 rounded-md font-bold text-xs border`}
                       >
                         {p}
                       </span>
                     ))}
                   </div>
-                  <p className="text-sm text-gray-400">
+                  <p className={`text-xs ${t.textMuted}`}>
                     আপনি কি এই অবস্থাতেই স্প্লিট করতে চান?
                   </p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   <p>
-                    এই বইতে কোনো নির্ধারিত স্প্লিট প্যাটার্ন পাওয়া যায়নি। মোট
-                    শব্দ সংখ্যা:{" "}
-                    <span className="font-bold text-black">
+                    কোনো নির্ধারিত স্প্লিট প্যাটার্ন পাওয়া যায়নি। মোট শব্দ:{" "}
+                    <span className={`font-bold ${t.textPrimary}`}>
                       {showModal.data.wordCount}
                     </span>
                   </p>
-                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                    <label className="block text-xs font-bold text-blue-600 mb-2 uppercase tracking-widest">
-                      How many splits do you want?
+                  <div
+                    className={`${isDark ? "bg-blue-900/20 border-blue-800" : "bg-blue-50 border-blue-100"} p-4 rounded-xl border`}
+                  >
+                    <label className="block text-xs font-bold text-blue-500 mb-2 uppercase tracking-widest">
+                      How many splits?
                     </label>
                     <input
                       type="number"
@@ -219,10 +232,10 @@ const UploadStep = () => {
                       onChange={(e) =>
                         setCustomSplitCount(parseInt(e.target.value) || 1)
                       }
-                      className="w-full bg-white border-2 border-blue-200 rounded-lg px-3 py-2 text-blue-800 font-bold outline-none focus:border-blue-500 transition-all"
+                      className={`w-full border-2 rounded-lg px-3 py-2 font-bold outline-none transition-all text-sm ${isDark ? "bg-[#252836] border-blue-800 text-gray-100 focus:border-blue-500" : "bg-white border-blue-200 text-blue-800 focus:border-blue-500"}`}
                     />
                     <p className="text-[10px] text-blue-400 mt-2 italic">
-                      *আমরা ১৫০০ শব্দে ১টি স্প্লিট হিসেবে{" "}
+                      *১৫০০ শব্দে ১টি হিসেবে{" "}
                       {Math.ceil(showModal.data.wordCount / 1500)}টি সাজেস্ট
                       করছি।
                     </p>
@@ -231,16 +244,16 @@ const UploadStep = () => {
               )}
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex gap-3">
               <button
                 onClick={() => setShowModal(null)}
-                className="flex-1 py-3 rounded-xl font-bold text-gray-400 hover:bg-gray-50 transition-all"
+                className={`flex-1 py-2.5 rounded-xl font-bold ${t.textMuted} ${t.surfaceHover} transition-all text-sm`}
               >
                 Cancel
               </button>
               <button
                 onClick={handleModalAction}
-                className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-100 active:scale-95 transition-all"
+                className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-500/20 active:scale-95 transition-all text-sm"
               >
                 {showModal.type === "missing-points"
                   ? "Continue Anyway"

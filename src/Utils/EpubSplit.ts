@@ -1,6 +1,5 @@
 import JSZip from "jszip";
 
-// ✅ Fix: সঠিক বাংলা সংখ্যা শব্দ (১ থেকে ১০০)
 const BENGALI_NUM_WORDS = [
   "",
   "এক",
@@ -108,7 +107,6 @@ const BENGALI_NUM_WORDS = [
 const SPLIT_PATTERN = /<p[^>]*?>\s*([০-৯\d]+)\.\s*<\/p>/g;
 const TARGET_XHTML = "main.xhtml";
 
-// ১. কোট ক্লিন করার লজিক
 const cleanQuotes = (html: string) => {
   return html.replace(/<p.*?>.*?<\/p>/gs, (match) => {
     return match.replace(/["""]/g, (q) =>
@@ -117,7 +115,6 @@ const cleanQuotes = (html: string) => {
   });
 };
 
-// ২. মেইন প্রসেসর
 export const processAndSplitEpub = async (
   originalFile: File,
   splitConfig: { isManual: boolean; count: number },
@@ -137,7 +134,6 @@ export const processAndSplitEpub = async (
     ? await content.file(ncxPath)!.async("string")
     : null;
 
-  // ধাপ ১: ক্লিন করা
   rawHtml = cleanQuotes(rawHtml);
 
   const bodyMatch = rawHtml.match(/<body.*?>(.*?)<\/body>/s);
@@ -146,11 +142,10 @@ export const processAndSplitEpub = async (
     rawHtml.match(/(<\?xml.*?<body.*?>)/s)?.[0] || "<html><body>";
   const fileFooter = "</body></html>";
 
-  const finalParts: { html: string; title: string }[] = [];
+  // isIntro: true হলে এই part টা Section0000, h2 নেই, TOC নেই
+  const finalParts: { html: string; title: string; isIntro: boolean }[] = [];
 
-  // ধাপ ২: স্প্লিটিং লজিক
   if (splitConfig.isManual) {
-    // g flag এর lastIndex reset
     SPLIT_PATTERN.lastIndex = 0;
     const parts = bodyContent.split(SPLIT_PATTERN);
     let counter = 0;
@@ -163,9 +158,8 @@ export const processAndSplitEpub = async (
       finalParts.push({
         html: p,
         title:
-          counter === 0
-            ? "সূচনা"
-            : `পর্ব-${BENGALI_NUM_WORDS[counter] || counter}`,
+          counter === 0 ? "" : `পর্ব-${BENGALI_NUM_WORDS[counter] || counter}`,
+        isIntro: counter === 0,
       });
     });
   } else {
@@ -182,6 +176,7 @@ export const processAndSplitEpub = async (
         finalParts.push({
           html: currentHtml,
           title: `পর্ব-${BENGALI_NUM_WORDS[idx] || idx}`,
+          isIntro: false,
         });
         idx++;
         currentHtml = p;
@@ -195,6 +190,7 @@ export const processAndSplitEpub = async (
       finalParts.push({
         html: currentHtml,
         title: `পর্ব-${BENGALI_NUM_WORDS[idx] || idx}`,
+        isIntro: false,
       });
     }
   }
@@ -203,18 +199,30 @@ export const processAndSplitEpub = async (
   let manifestEntries = "";
   let spineEntries = "";
   let navPoints = "";
+  let tocPlayOrder = 1;
+  let realSectionCounter = 0; // intro ছাড়া real section count
 
-  finalParts.forEach((part, i) => {
-    const id = `Section${(i + 1).toString().padStart(4, "0")}`;
+  finalParts.forEach((part) => {
+    // ✅ intro → Section0000, real parts → Section0001, Section0002...
+    const sectionNum = part.isIntro ? 0 : ++realSectionCounter;
+    const id = `Section${sectionNum.toString().padStart(4, "0")}`;
     const fileName = `${id}.xhtml`;
-    const heading = `<h2 style="text-align: center;">${part.title}</h2>\n`;
-    const finalHtml = `${fileHeader}\n${heading}${part.html}\n<br/>\n${fileFooter}`;
 
+    // ✅ intro তে h2 নেই, বাকিতে আছে
+    const heading = part.isIntro
+      ? ""
+      : `<h2 style="text-align: center;">${part.title}</h2>\n`;
+
+    const finalHtml = `${fileHeader}\n${heading}${part.html}\n<br/>\n${fileFooter}`;
     zip.file(`OEBPS/Text/${fileName}`, finalHtml);
 
     manifestEntries += `    <item id="${id}" href="Text/${fileName}" media-type="application/xhtml+xml"/>\n`;
     spineEntries += `    <itemref idref="${id}"/>\n`;
-    navPoints += `    <navPoint id="${id}" playOrder="${i + 1}"><navLabel><text>${part.title}</text></navLabel><content src="Text/${fileName}"/></navPoint>\n`;
+
+    // ✅ intro TOC এ যাবে না
+    if (!part.isIntro) {
+      navPoints += `    <navPoint id="${id}" playOrder="${tocPlayOrder++}"><navLabel><text>${part.title}</text></navLabel><content src="Text/${fileName}"/></navPoint>\n`;
+    }
   });
 
   // ধাপ ৪: OPF আপডেট

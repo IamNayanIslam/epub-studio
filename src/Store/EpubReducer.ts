@@ -16,8 +16,11 @@ export const initialState: EpubState = {
   },
   metadata: {
     title: "",
-    author: "",
+    authorBengali: "",
+    authorFileAs: "",
+    subjects: "",
     publisher: "Boitoi",
+    language: "bn",
   },
 };
 
@@ -29,7 +32,6 @@ export const epubReducer = (
     case "SET_STEP":
       return { ...state, currentStep: action.payload };
     case "SET_FILE":
-      // ✅ নতুন ফাইল আসলে আগের cover আর processedBlob reset হবে
       return {
         ...state,
         originalFile: action.payload.file,
