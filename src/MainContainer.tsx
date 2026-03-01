@@ -79,23 +79,24 @@ export const MainContainer = ({ children }: { children: React.ReactNode }) => {
 
       {/* ── Header ── */}
       <header className={`${t.header} border-b sticky top-0 z-50`}>
-        <div className="max-w-4xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex justify-between items-center">
+        <div className="max-w-4xl mx-auto px-3 sm:px-6 py-2.5 sm:py-4 flex justify-between items-center">
 
           {/* Steps */}
           <div className="flex items-center gap-1 sm:gap-2">
             {steps.map((s, idx) => (
               <React.Fragment key={s.id}>
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center font-bold text-xs transition-all duration-300 shrink-0 ${
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center font-bold text-[10px] sm:text-xs transition-all duration-300 shrink-0 ${
                     currentStep >= s.id
                       ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
                       : t.stepInactive
                   }`}>
                     {s.id + 1}
                   </div>
-                  <span className={`text-[10px] sm:text-xs font-bold tracking-tight transition-colors duration-300 leading-tight ${
+                  {/* Label — mobile এ শুধু active step দেখাবে */}
+                  <span className={`text-[10px] sm:text-xs font-bold tracking-tight transition-all duration-300 leading-tight ${
                     currentStep >= s.id ? t.textPrimary : t.textMuted
-                  }`}>
+                  } ${currentStep === s.id ? "inline" : "hidden sm:inline"}`}>
                     <span className="sm:hidden">
                       {s.id === 0 ? "Upload" : s.id === 1 ? "Cover" : "Final"}
                     </span>
@@ -103,32 +104,34 @@ export const MainContainer = ({ children }: { children: React.ReactNode }) => {
                   </span>
                 </div>
                 {idx < steps.length - 1 && (
-                  <div className={`w-6 sm:w-10 h-[2px] ${t.stepConnector} mx-1`} />
+                  <div className={`w-3 sm:w-10 h-[2px] ${t.stepConnector} mx-0.5 sm:mx-1`} />
                 )}
               </React.Fragment>
             ))}
           </div>
 
           {/* Right Icons */}
-          <div className="flex items-center gap-2 relative">
+          <div className="flex items-center gap-1.5 sm:gap-2 relative">
 
             {/* Theme toggle */}
             <button
               onClick={toggleTheme}
-              className={`w-9 h-9 rounded-xl flex items-center justify-center ${t.stepInactive} ${t.surfaceHover} transition-all border ${t.cardBorder}`}
+              className={`w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl flex items-center justify-center ${t.stepInactive} ${t.surfaceHover} transition-all border ${t.cardBorder}`}
             >
-              {isDark ? <Sun size={16} className="text-yellow-400" /> : <Moon size={16} className={t.textMuted} />}
+              {isDark ? <Sun size={13} className="text-yellow-400 sm:hidden" /> : <Moon size={13} className={`${t.textMuted} sm:hidden`} />}
+              {isDark ? <Sun size={16} className="text-yellow-400 hidden sm:block" /> : <Moon size={16} className={`${t.textMuted} hidden sm:block`} />}
             </button>
 
             {/* Settings — সব user */}
             <div className="relative">
               <button
                 onClick={() => { setShowTools(!showTools); setShowProfile(false); }}
-                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all border ${t.cardBorder} ${
+                className={`w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl flex items-center justify-center transition-all border ${t.cardBorder} ${
                   showTools ? "bg-blue-600 text-white border-blue-600" : `${t.stepInactive} ${t.surfaceHover}`
                 }`}
               >
-                <Settings size={16} />
+                <Settings size={13} className="sm:hidden" />
+                <Settings size={16} className="hidden sm:block" />
               </button>
 
               {showTools && (
@@ -185,7 +188,7 @@ export const MainContainer = ({ children }: { children: React.ReactNode }) => {
             <div className="relative">
               <button
                 onClick={() => { setShowProfile(!showProfile); setShowTools(false); }}
-                className={`w-9 h-9 rounded-xl flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-black text-xs border-2 ${t.cardBorder} shadow-sm hover:scale-105 transition-all`}
+                className={`w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-black text-[10px] sm:text-xs border-2 ${t.cardBorder} shadow-sm hover:scale-105 transition-all`}
               >
                 {profile?.email?.substring(0, 1).toUpperCase()}
               </button>
