@@ -86,9 +86,7 @@ async function compressEpub(file: File): Promise<{ blob: Blob; result: ProcessRe
       renameMap[filePath] = newPath;
       toCompress.add(filePath);
     } else if ((lp.endsWith(".jpg") || lp.endsWith(".jpeg") || lp.endsWith(".webp")) && !isCover) {
-      // Large JPG/WEBP → recompress in place (no rename needed)
-      const fileSize = (f as any)._data?.uncompressedSize ?? SIZE_THRESHOLD + 1;
-      // We'll check actual size during processing
+      // Large JPG/WEBP → recompress in place (actual size checked during processing)
       toCompress.add(filePath);
     }
   }

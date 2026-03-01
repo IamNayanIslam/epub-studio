@@ -3,15 +3,16 @@ export interface CoverConfig {
   logoColor: "blue" | "white";
   margin: number;
   logoSize: number;
+  addBackground: boolean;
 }
 
 export interface Metadata {
   title: string;
-  authorBengali: string; // dc:creator content — বাংলায়
-  authorFileAs: string; // opf:file-as — ইংরেজিতে
-  subjects: string; // comma separated — Romance, Drama
+  authorBengali: string;   // dc:creator content — বাংলায়
+  authorFileAs: string;    // opf:file-as — ইংরেজিতে
+  subjects: string;        // comma separated — Romance, Drama
   publisher: string;
-  language: string; // default "bn"
+  language: string;        // default "bn"
 }
 
 export interface EpubState {

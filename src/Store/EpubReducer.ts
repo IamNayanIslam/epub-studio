@@ -13,6 +13,7 @@ export const initialState: EpubState = {
     logoColor: "blue",
     margin: 18,
     logoSize: 18,
+    addBackground: false,
   },
   metadata: {
     title: "",
