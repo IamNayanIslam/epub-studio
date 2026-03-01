@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   ChevronRight, Download, ArrowLeft, Loader2,
-  Sun, Moon, Settings, UserPlus, LogOut, Key, Users, ImagePlus,
+  Sun, Moon, Settings, UserPlus, LogOut, Key, Users, ImagePlus, FileArchive,
 } from "lucide-react";
 import { useEpub } from "./Store/EpubContext";
 import { useTheme, tokens } from "./Store/ThemeContext";
@@ -9,10 +9,11 @@ import { useAuth } from "./Store/AuthContext";
 import { supabase } from "./Utils/supabaseClient";
 import { downloadBlob, updateCoverXhtmlMetadata } from "./Utils/EpubDownloader";
 import { AddUserModal } from "./Components/Modals/AddUserModal";
-import { updateMetadataInBlob } from "./Components/Steps/MetadataStep";
+import { updateMetadataInBlob, validateMetadata } from "./Components/Steps/MetadataStep";
 import { UserControlModal } from "./Components/Modals/UserControlModal";
 import { ChangePasswordModal } from "./Components/Modals/ChangePasswordModal";
 import { CoverToolModal } from "./Components/Modals/CoverToolModal";
+import { CompressEpubModal } from "./Components/Modals/CompressEpubModal";
 
 const steps = [
   { id: 0, title: "Upload & Clean" },
@@ -27,7 +28,7 @@ export const MainContainer = ({ children }: { children: React.ReactNode }) => {
   const t = isDark ? tokens.dark : tokens.light;
   const { currentStep, originalFile, processedBlob } = state;
   const [isDownloading, setIsDownloading] = useState(false);
-  const [activeModal, setActiveModal] = useState<"user" | "list" | "password" | "cover-tool" | null>(null);
+  const [activeModal, setActiveModal] = useState<"user" | "list" | "password" | "cover-tool" | "compress" | null>(null);
   const [showTools, setShowTools] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
 
@@ -46,6 +47,14 @@ export const MainContainer = ({ children }: { children: React.ReactNode }) => {
 
   const handleFinalDownload = async () => {
     if (!processedBlob) { alert("প্রথমে file upload করুন!"); return; }
+
+    // ── Metadata validation ───────────────────────────────────────────
+    const emptyFields = validateMetadata(state.metadata);
+    if (emptyFields.length > 0) {
+      alert(`নিচের field গুলো পূরণ করুন:\n\n• ${emptyFields.join("\n• ")}`);
+      return;
+    }
+
     setIsDownloading(true);
     try {
       const title = state.metadata?.title || "Updated_Book";
@@ -136,6 +145,12 @@ export const MainContainer = ({ children }: { children: React.ReactNode }) => {
                       className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold ${t.textSecondary} hover:bg-blue-600 hover:text-white rounded-xl transition-all text-left`}
                     >
                       <ImagePlus size={16} /> Create Cover
+                    </button>
+                    <button
+                      onClick={() => { setActiveModal("compress"); setShowTools(false); }}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold ${t.textSecondary} hover:bg-blue-600 hover:text-white rounded-xl transition-all text-left`}
+                    >
+                      <FileArchive size={16} /> Compress EPUB
                     </button>
 
                     {/* Management — Admin/Super Admin */}
@@ -274,6 +289,12 @@ export const MainContainer = ({ children }: { children: React.ReactNode }) => {
       {/* ── Modals ── */}
       <CoverToolModal
         isOpen={activeModal === "cover-tool"}
+        onClose={() => setActiveModal(null)}
+        theme={t}
+        isDark={isDark}
+      />
+      <CompressEpubModal
+        isOpen={activeModal === "compress"}
         onClose={() => setActiveModal(null)}
         theme={t}
         isDark={isDark}
