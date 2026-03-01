@@ -1,7 +1,20 @@
 // src/Utils/CoverProcessor.ts
+import * as jpeg from "@jsquash/jpeg";
+
+const COVER_WIDTH = 395;
+const COVER_HEIGHT = 632;
+const JPEG_QUALITY = 80; // Sharp এর মতো quality
+
+// ── Canvas থেকে MozJPEG দিয়ে Blob বানানো ────────────────────────────────
+async function canvasToMozJpegBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  const ctx = canvas.getContext("2d")!;
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const jpegBuffer = await jpeg.encode(imageData, { quality: JPEG_QUALITY });
+  return new Blob([jpegBuffer], { type: "image/jpeg" });
+}
 
 export const generateCoverImages = async (
-  imageFile: File | string, // File অথবা URL স্ট্রিং দুটোই সাপোর্ট করবে
+  imageFile: File | string,
   config: any,
   withLogo: boolean = false,
 ): Promise<Blob> => {
@@ -10,20 +23,15 @@ export const generateCoverImages = async (
 
     img.onload = async () => {
       const canvas = document.createElement("canvas");
-      canvas.width = 395;
-      canvas.height = 632;
+      canvas.width = COVER_WIDTH;
+      canvas.height = COVER_HEIGHT;
       const ctx = canvas.getContext("2d");
-
       if (!ctx) return reject("Canvas context failed");
 
-      // হাই-কোয়ালিটি সেটিংস
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(img, 0, 0, COVER_WIDTH, COVER_HEIGHT);
 
-      // ১. মেইন কভার ড্র করা
-      ctx.drawImage(img, 0, 0, 395, 632);
-
-      // ২. লোগো অ্যাড করা
       if (withLogo) {
         const logo = new Image();
         logo.src =
@@ -36,33 +44,33 @@ export const generateCoverImages = async (
           logo.onerror = () => reject("Logo load failed");
         });
 
-        const logoWidth = (395 * (config.logoSize || 18)) / 100;
+        const logoWidth = (COVER_WIDTH * (config.logoSize || 18)) / 100;
         const logoHeight = (logo.height / logo.width) * logoWidth;
         const margin = config.margin || 18;
-
-        const x = 395 - logoWidth - margin;
+        const x = COVER_WIDTH - logoWidth - margin;
         const y =
           config.logoPosition === "top-right"
             ? margin
-            : 632 - logoHeight - margin;
+            : COVER_HEIGHT - logoHeight - margin;
 
         ctx.shadowColor = "rgba(0,0,0,0.2)";
         ctx.shadowBlur = 10;
         ctx.drawImage(logo, x, y, logoWidth, logoHeight);
       }
 
-      // ৩. ব্লব হিসেবে রিটার্ন করা (কোয়ালিটি ১.০ ফিক্সড)
-      canvas.toBlob(
-        (blob) => {
-          if (blob) resolve(blob);
-          else reject("Blob generation failed");
-        },
-        "image/jpeg",
-        1.0, // এখানে সরাসরি ১০০% কোয়ালিটি
-      );
+      try {
+        const blob = await canvasToMozJpegBlob(canvas);
+        resolve(blob);
+      } catch {
+        // MozJPEG fail হলে fallback
+        canvas.toBlob(
+          (blob) => (blob ? resolve(blob) : reject("Blob failed")),
+          "image/jpeg",
+          0.85,
+        );
+      }
     };
 
-    // যদি imageFile স্ট্রিং (URL) হয় তবে সরাসরি সেট হবে, নাহলে তৈরি হবে
     img.src =
       typeof imageFile === "string"
         ? imageFile
