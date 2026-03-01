@@ -189,13 +189,13 @@ const CoverStep = () => {
           Live Preview
         </h3>
 
-        {/* Mobile: preview + controls side by side */}
-        <div className="flex flex-row md:flex-col gap-3 w-full md:items-center">
+        {/* Mobile: preview উপরে full width, controls নিচে */}
+        <div className="flex flex-col gap-3 w-full md:items-center">
 
           {/* Preview dropzone */}
           <div
             {...getRootProps()}
-            className={`relative w-[120px] md:w-full md:max-w-[280px] shrink-0 aspect-[395/632] rounded-xl md:rounded-2xl border-2 border-dashed overflow-hidden flex items-center justify-center transition-all duration-200 cursor-pointer
+            className={`relative w-full md:max-w-[280px] shrink-0 aspect-[395/632] rounded-xl md:rounded-2xl border-2 border-dashed overflow-hidden flex items-center justify-center transition-all duration-200 cursor-pointer
               ${previewUrl ? "border-blue-500 ring-2 ring-blue-500/20" : isDragActive ? t.dropzoneActive : t.dropzone}`}
           >
             <input {...getInputProps()} />
@@ -235,8 +235,8 @@ const CoverStep = () => {
             )}
           </div>
 
-          {/* ── Mobile Controls (পাশে) ───────────────────────────────── */}
-          <div className="flex-1 md:hidden space-y-3">
+          {/* ── Mobile Controls (নিচে) ──────────────────────────────── */}
+          <div className="w-full md:hidden space-y-3">
             <div>
               <label className={`block text-[9px] font-black ${t.textMuted} mb-1.5 uppercase tracking-wider`}>Logo Style</label>
               <div className="flex gap-2">
