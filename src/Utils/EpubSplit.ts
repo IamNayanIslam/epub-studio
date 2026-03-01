@@ -28,11 +28,12 @@ const SPLIT_PATTERN = /<p[^>]*?>\s*([০-৯\d]+)\.\s*<\/p>/g;
 const TARGET_XHTML = "main.xhtml";
 
 const cleanQuotes = (html: string) => {
-  // শুধু <p> tag এর ভেতরে curly double quotes → single quotes
+  // শুধু <p> tag এর ভেতরে সব ধরনের double quote → single quote
   return html.replace(/(<p[^>]*>)(.*?)(<\/p>)/gs, (_, open, content, close) => {
     const cleaned = content
-      .replace(/\u201c/g, "\u2018") // " → '
-      .replace(/\u201d/g, "\u2019"); // " → '
+      .replace(/\u201c/g, "\u2018") // " → ' (opening curly)
+      .replace(/\u201d/g, "\u2019") // " → ' (closing curly)
+      .replace(/\u0022/g, "\u2019"); // " → ' (straight double quote)
     return open + cleaned + close;
   });
 };

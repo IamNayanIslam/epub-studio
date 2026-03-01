@@ -31,6 +31,9 @@ const UploadStep = () => {
     dispatch({ type: "SET_PROCESSED_BLOB", payload: blob });
   };
 
+  const text = '"';
+console.log('char code:', text.charCodeAt(0), '| hex:', text.charCodeAt(0).toString(16));
+
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
       const file = acceptedFiles[0];
