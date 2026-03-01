@@ -119,11 +119,9 @@ const CoverStep = () => {
 
   const processedBlobRef = useRef<Blob | null>(state.processedBlob);
   const coverConfigRef = useRef(state.coverConfig);
-  const metadataRef = useRef(state.metadata);
 
   useEffect(() => { processedBlobRef.current = state.processedBlob; }, [state.processedBlob]);
   useEffect(() => { coverConfigRef.current = state.coverConfig; }, [state.coverConfig]);
-  useEffect(() => { metadataRef.current = state.metadata; }, [state.metadata]);
   useEffect(() => { if (!state.coverImage) setPreviewUrl(null); }, [state.coverImage]);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
@@ -137,12 +135,7 @@ const CoverStep = () => {
       setIsInjecting(true);
       try {
         const plainCoverBlob = await buildPlainCoverBlob(url);
-        const updatedBlob = await injectCoverIntoBlob(
-          currentBlob,
-          plainCoverBlob,
-          metadataRef.current?.title || "",
-          metadataRef.current?.authorBengali || "",
-        );
+        const updatedBlob = await injectCoverIntoBlob(currentBlob, plainCoverBlob);
         dispatch({ type: "SET_PROCESSED_BLOB", payload: updatedBlob });
       } catch (err) { console.error("Cover injection failed:", err); }
       finally { setIsInjecting(false); }

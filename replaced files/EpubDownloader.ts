@@ -4,53 +4,44 @@ import JSZip from "jszip";
 export const injectCoverIntoBlob = async (
   epubBlob: Blob,
   newCoverBlob: Blob,
-  bookTitle: string = "",
-  authorName: string = "",
 ): Promise<Blob> => {
   const zip = new JSZip();
   const content = await zip.loadAsync(await epubBlob.arrayBuffer());
 
-  // সব ফাইল copy
-  for (const [filePath, file] of Object.entries(content.files)) {
-    if (file.dir) continue;
-    zip.file(filePath, await file.async("uint8array"));
-  }
-
+  // OPF খোঁজা
   const opfPath = Object.keys(content.files).find((p) => p.endsWith(".opf"));
   if (!opfPath) throw new Error("OPF file not found!");
 
-  const opfDir = opfPath.split("/").slice(0, -1).join("/");
+  const opfDir = opfPath.split("/").slice(0, -1).join("/"); // e.g. "OEBPS"
   let opfContent = await content.file(opfPath)!.async("string");
 
-  // ── Cover image path ──────────────────────────────────────────────────
+  // ── Cover image path নির্ধারণ ────────────────────────────────────────
   const existingCoverPath = Object.keys(content.files).find((p) => {
     const lp = p.toLowerCase();
-    return lp.includes("cover") && (lp.endsWith(".jpg") || lp.endsWith(".jpeg") || lp.endsWith(".png"));
+    return (
+      lp.includes("cover") &&
+      (lp.endsWith(".jpg") || lp.endsWith(".jpeg") || lp.endsWith(".png"))
+    );
   });
   const internalImgPath = existingCoverPath || `${opfDir}/Images/cover.jpg`;
   const coverHrefFromOpf = internalImgPath.replace(`${opfDir}/`, "");
 
+  // Cover image inject
   zip.file(internalImgPath, newCoverBlob);
 
-  // ── Cover XHTML relative path ─────────────────────────────────────────
+  // ── Cover XHTML তৈরি ─────────────────────────────────────────────────
   const coverXhtmlPath = `${opfDir}/Text/cover.xhtml`;
   const xhtmlDir = `${opfDir}/Text`;
 
   const imgRelativeFromXhtml = (() => {
     const from = xhtmlDir.split("/");
     const to = internalImgPath.split("/");
-    while (from.length && to.length && from[0] === to[0]) { from.shift(); to.shift(); }
+    while (from.length && to.length && from[0] === to[0]) {
+      from.shift();
+      to.shift();
+    }
     return "../".repeat(from.length) + to.join("/");
   })();
-
-  // ── Cover XHTML — title + author থাকলে যোগ হবে ───────────────────────
-  const titleLine = bookTitle.trim()
-    ? `\n<h1 style="text-align: center;">${bookTitle.trim()}</h1>`
-    : "";
-  const authorLine = authorName.trim()
-    ? `\n<h3 style="text-align: center;">${authorName.trim()}</h3>`
-    : "";
-  const endingBr = (titleLine || authorLine) ? `\n<br />` : "";
 
   const coverXhtml = `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
@@ -64,13 +55,13 @@ export const injectCoverIntoBlob = async (
     <svg xmlns="http://www.w3.org/2000/svg" height="100%" preserveAspectRatio="xMidYMid meet" version="1.1" viewBox="0 0 395 632" width="100%" xmlns:xlink="http://www.w3.org/1999/xlink">
       <image width="395" height="632" xlink:href="${imgRelativeFromXhtml}"/>
     </svg>
-  </div>${titleLine}${authorLine}${endingBr}
+  </div>
 </body>
 </html>`;
 
   zip.file(coverXhtmlPath, coverXhtml);
 
-  // ── OPF Manifest ──────────────────────────────────────────────────────
+  // ── OPF Manifest আপডেট ───────────────────────────────────────────────
   if (!opfContent.includes(`href="${coverHrefFromOpf}"`)) {
     opfContent = opfContent.replace(
       "<manifest>",
@@ -86,7 +77,7 @@ export const injectCoverIntoBlob = async (
     );
   }
 
-  // ── OPF Metadata ──────────────────────────────────────────────────────
+  // ── OPF Metadata ─────────────────────────────────────────────────────
   if (!opfContent.includes('name="cover"')) {
     opfContent = opfContent.replace(
       /<metadata[^>]*>/,
@@ -94,7 +85,7 @@ export const injectCoverIntoBlob = async (
     );
   }
 
-  // ── OPF Spine ─────────────────────────────────────────────────────────
+  // ── OPF Spine ────────────────────────────────────────────────────────
   if (!opfContent.includes('idref="cover-xhtml"')) {
     opfContent = opfContent.replace(
       /<spine[^>]*>/,
@@ -103,61 +94,6 @@ export const injectCoverIntoBlob = async (
   }
 
   zip.file(opfPath, opfContent);
-
-  return await zip.generateAsync({
-    type: "blob",
-    mimeType: "application/epub+zip",
-    compression: "DEFLATE",
-    compressionOptions: { level: 9 },
-  });
-};
-
-// ── Cover XHTML এ শুধু title + author update (নতুন cover image ছাড়া) ─────
-export const updateCoverXhtmlMetadata = async (
-  epubBlob: Blob,
-  bookTitle: string,
-  authorName: string,
-): Promise<Blob> => {
-  const zip = new JSZip();
-  const content = await zip.loadAsync(await epubBlob.arrayBuffer());
-
-  // সব ফাইল copy
-  for (const [filePath, file] of Object.entries(content.files)) {
-    if (file.dir) continue;
-    zip.file(filePath, await file.async("uint8array"));
-  }
-
-  // cover.xhtml খোঁজা
-  const coverXhtmlPath = Object.keys(content.files).find(
-    (p) => p.toLowerCase().includes("cover") && p.endsWith(".xhtml"),
-  );
-  if (!coverXhtmlPath) {
-    // cover.xhtml নেই — unchanged return
-    return epubBlob;
-  }
-
-  let coverXhtml = await content.file(coverXhtmlPath)!.async("string");
-
-  // আগের title/author সরানো
-  coverXhtml = coverXhtml.replace(/<h1[^>]*>.*?<\/h1>\n?/gs, "");
-  coverXhtml = coverXhtml.replace(/<h3[^>]*>.*?<\/h3>\n?/gs, "");
-  coverXhtml = coverXhtml.replace(/<br\s*\/>\s*\n?(?=\s*<\/body>)/g, "");
-
-  // নতুন title + author + br যোগ করা
-  const titleLine = bookTitle.trim()
-    ? `\n<h1 style="text-align: center;">${bookTitle.trim()}</h1>`
-    : "";
-  const authorLine = authorName.trim()
-    ? `\n<h3 style="text-align: center;">${authorName.trim()}</h3>`
-    : "";
-  const endingBr = (titleLine || authorLine) ? `\n<br />` : "";
-
-  coverXhtml = coverXhtml.replace(
-    "</body>",
-    `${titleLine}${authorLine}${endingBr}\n</body>`,
-  );
-
-  zip.file(coverXhtmlPath, coverXhtml);
 
   return await zip.generateAsync({
     type: "blob",
@@ -179,6 +115,7 @@ export const downloadBlob = (blob: Blob, bookTitle: string = "book") => {
   setTimeout(() => URL.revokeObjectURL(url), 100);
 };
 
+// ── Backward compatibility ────────────────────────────────────────────────
 export const injectCoverAndDownload = async (
   originalFile: File,
   newCoverBlob: Blob,

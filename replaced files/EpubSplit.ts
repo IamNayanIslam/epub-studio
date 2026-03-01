@@ -123,10 +123,7 @@ export const processAndSplitEpub = async (
   let tocPlayOrder = 1;
   let realSectionCounter = 0; // intro ছাড়া real section count
 
-  // শেষ non-intro part এর index বের করা
-  const lastRealIndex = finalParts.reduce((last, p, i) => (!p.isIntro ? i : last), -1);
-
-  finalParts.forEach((part, partIndex) => {
+  finalParts.forEach((part) => {
     // ✅ intro → Section0000, real parts → Section0001, Section0002...
     const sectionNum = part.isIntro ? 0 : ++realSectionCounter;
     const id = `Section${sectionNum.toString().padStart(4, "0")}`;
@@ -137,24 +134,7 @@ export const processAndSplitEpub = async (
       ? ""
       : `<h2 style="text-align: center;">${part.title}</h2>\n`;
 
-    // ✅ Last section এ সমাপ্ত যোগ করা
-    let htmlContent = part.html;
-    if (partIndex === lastRealIndex) {
-      const SAMAPTO = "সমাপ্ত";
-      const samapto_bold_center = `<p style="text-align: center;"><strong>${SAMAPTO}</strong></p>`;
-      // আগে থেকে আছে কিনা check
-      if (!htmlContent.includes(SAMAPTO)) {
-        htmlContent += `\n${samapto_bold_center}`;
-      } else {
-        // আছে কিন্তু bold+center নেই — replace করা
-        htmlContent = htmlContent.replace(
-          /(<p[^>]*>)\s*সমাপ্ত\s*(<\/p>)/g,
-          samapto_bold_center,
-        );
-      }
-    }
-
-    const finalHtml = `${fileHeader}\n${heading}${htmlContent}\n<br/>\n${fileFooter}`;
+    const finalHtml = `${fileHeader}\n${heading}${part.html}\n<br/>\n${fileFooter}`;
     zip.file(`OEBPS/Text/${fileName}`, finalHtml);
 
     manifestEntries += `    <item id="${id}" href="Text/${fileName}" media-type="application/xhtml+xml"/>\n`;
