@@ -1,10 +1,11 @@
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { Upload, FileWarning, Loader2, CheckCircle2 } from "lucide-react";
-import { processEpubFile } from "../Utils/EpubProcessor";
-import { processAndSplitEpub } from "../Utils/EpubSplit";
-import { useEpub } from "../Store/EpubContext";
-import { useTheme, tokens } from "../Store/ThemeContext";
+
+import { processEpubFile } from "../../Utils/EpubProcessor";
+import { processAndSplitEpub } from "../../Utils/EpubSplit";
+import { useEpub } from "../../Store/EpubContext";
+import { tokens, useTheme } from "../../Store/ThemeContext";
 
 interface ModalState {
   type: "missing-points" | "no-points";
@@ -32,7 +33,12 @@ const UploadStep = () => {
   };
 
   const text = '"';
-console.log('char code:', text.charCodeAt(0), '| hex:', text.charCodeAt(0).toString(16));
+  console.log(
+    "char code:",
+    text.charCodeAt(0),
+    "| hex:",
+    text.charCodeAt(0).toString(16),
+  );
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {

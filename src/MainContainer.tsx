@@ -1,9 +1,18 @@
-import React from "react";
-import { ChevronRight, Download, ArrowLeft, Loader2, Sun, Moon } from "lucide-react";
+import React, { useState } from "react";
+import {
+  ChevronRight, Download, ArrowLeft, Loader2,
+  Sun, Moon, Settings, UserPlus, LogOut, Key, Users, ImagePlus,
+} from "lucide-react";
 import { useEpub } from "./Store/EpubContext";
 import { useTheme, tokens } from "./Store/ThemeContext";
+import { useAuth } from "./Store/AuthContext";
+import { supabase } from "./Utils/supabaseClient";
 import { downloadBlob, updateCoverXhtmlMetadata } from "./Utils/EpubDownloader";
-import { updateMetadataInBlob } from "./Steps/MetadataStep";
+import { AddUserModal } from "./Components/Modals/AddUserModal";
+import { updateMetadataInBlob } from "./Components/Steps/MetadataStep";
+import { UserControlModal } from "./Components/Modals/UserControlModal";
+import { ChangePasswordModal } from "./Components/Modals/ChangePasswordModal";
+import { CoverToolModal } from "./Components/Modals/CoverToolModal";
 
 const steps = [
   { id: 0, title: "Upload & Clean" },
@@ -14,12 +23,21 @@ const steps = [
 export const MainContainer = ({ children }: { children: React.ReactNode }) => {
   const { state, dispatch } = useEpub();
   const { isDark, toggleTheme } = useTheme();
+  const { profile } = useAuth();
   const t = isDark ? tokens.dark : tokens.light;
   const { currentStep, originalFile, processedBlob } = state;
-  const [isDownloading, setIsDownloading] = React.useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [activeModal, setActiveModal] = useState<"user" | "list" | "password" | "cover-tool" | null>(null);
+  const [showTools, setShowTools] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
 
   const handleNext = () => dispatch({ type: "SET_STEP", payload: currentStep + 1 });
   const handleBack = () => dispatch({ type: "SET_STEP", payload: currentStep - 1 });
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.reload();
+  };
 
   const handleNoCoverDownload = () => {
     if (!processedBlob) { alert("আগে ফাইলটি প্রসেস হতে দিন!"); return; }
@@ -32,14 +50,10 @@ export const MainContainer = ({ children }: { children: React.ReactNode }) => {
     try {
       const title = state.metadata?.title || "Updated_Book";
       const authorBengali = state.metadata?.authorBengali || "";
-
-      // ── Step 1: cover.xhtml এ title+author update ────────────────────
       let blob = processedBlob;
       if (state.coverImage) {
         blob = await updateCoverXhtmlMetadata(blob, title, authorBengali);
       }
-
-      // ── Step 2: OPF metadata update ──────────────────────────────────
       const updatedBlob = await updateMetadataInBlob(blob, state.metadata);
       downloadBlob(updatedBlob, title);
     } catch (error) {
@@ -49,12 +63,15 @@ export const MainContainer = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const isAdminOrAbove = profile?.role === "super_admin" || profile?.role === "admin";
+
   return (
     <div className={`min-h-screen ${t.bg} flex flex-col font-sans transition-colors duration-300`}>
 
       {/* ── Header ── */}
-      <header className={`${t.header} border-b sticky top-0 z-10`}>
+      <header className={`${t.header} border-b sticky top-0 z-50`}>
         <div className="max-w-4xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex justify-between items-center">
+
           {/* Steps */}
           <div className="flex items-center gap-1 sm:gap-2">
             {steps.map((s, idx) => (
@@ -83,13 +100,108 @@ export const MainContainer = ({ children }: { children: React.ReactNode }) => {
             ))}
           </div>
 
-          {/* Theme toggle */}
-          <button
-            onClick={toggleTheme}
-            className={`w-8 h-8 rounded-lg flex items-center justify-center ${t.stepInactive} ${t.surfaceHover} transition-all`}
-          >
-            {isDark ? <Sun size={15} className="text-yellow-400" /> : <Moon size={15} className={t.textMuted} />}
-          </button>
+          {/* Right Icons */}
+          <div className="flex items-center gap-2 relative">
+
+            {/* Theme toggle */}
+            <button
+              onClick={toggleTheme}
+              className={`w-9 h-9 rounded-xl flex items-center justify-center ${t.stepInactive} ${t.surfaceHover} transition-all border ${t.cardBorder}`}
+            >
+              {isDark ? <Sun size={16} className="text-yellow-400" /> : <Moon size={16} className={t.textMuted} />}
+            </button>
+
+            {/* Settings — সব user */}
+            <div className="relative">
+              <button
+                onClick={() => { setShowTools(!showTools); setShowProfile(false); }}
+                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all border ${t.cardBorder} ${
+                  showTools ? "bg-blue-600 text-white border-blue-600" : `${t.stepInactive} ${t.surfaceHover}`
+                }`}
+              >
+                <Settings size={16} />
+              </button>
+
+              {showTools && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowTools(false)} />
+                  <div className={`absolute right-0 mt-3 w-60 rounded-2xl shadow-2xl border ${t.cardBorder} ${t.header} z-50 p-2`}>
+
+                    {/* Tools — সব user দেখবে */}
+                    <p className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>
+                      Tools
+                    </p>
+                    <button
+                      onClick={() => { setActiveModal("cover-tool"); setShowTools(false); }}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold ${t.textSecondary} hover:bg-blue-600 hover:text-white rounded-xl transition-all text-left`}
+                    >
+                      <ImagePlus size={16} /> Create Cover
+                    </button>
+
+                    {/* Management — Admin/Super Admin */}
+                    {isAdminOrAbove && (
+                      <>
+                        <div className={`my-2 border-t ${t.cardBorder}`} />
+                        <p className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest ${t.textMuted}`}>
+                          Management
+                        </p>
+                        {profile?.role === "super_admin" && (
+                          <button
+                            onClick={() => { setActiveModal("list"); setShowTools(false); }}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold ${t.textSecondary} hover:bg-blue-600 hover:text-white rounded-xl transition-all text-left`}
+                          >
+                            <Users size={16} /> User List & Control
+                          </button>
+                        )}
+                        <button
+                          onClick={() => { setActiveModal("user"); setShowTools(false); }}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold ${t.textSecondary} hover:bg-blue-600 hover:text-white rounded-xl transition-all text-left`}
+                        >
+                          <UserPlus size={16} /> Add New User
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Profile */}
+            <div className="relative">
+              <button
+                onClick={() => { setShowProfile(!showProfile); setShowTools(false); }}
+                className={`w-9 h-9 rounded-xl flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-black text-xs border-2 ${t.cardBorder} shadow-sm hover:scale-105 transition-all`}
+              >
+                {profile?.email?.substring(0, 1).toUpperCase()}
+              </button>
+
+              {showProfile && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowProfile(false)} />
+                  <div className={`absolute right-0 mt-3 w-52 rounded-2xl shadow-2xl border ${t.cardBorder} ${t.header} z-50 p-2`}>
+                    <div className={`px-3 py-2 border-b ${t.cardBorder} mb-1`}>
+                      <p className={`text-xs font-bold truncate ${t.textPrimary}`}>{profile?.email}</p>
+                      <p className="text-[10px] text-blue-500 font-bold uppercase tracking-wider mt-0.5">
+                        {profile?.role?.replace("_", " ")}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => { setActiveModal("password"); setShowProfile(false); }}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold ${t.textSecondary} ${t.surfaceHover} rounded-xl transition-all text-left`}
+                    >
+                      <Key size={16} /> Change Password
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-red-500 hover:bg-red-500/10 rounded-xl transition-all text-left"
+                    >
+                      <LogOut size={16} /> Logout
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </header>
 
@@ -103,15 +215,17 @@ export const MainContainer = ({ children }: { children: React.ReactNode }) => {
       {/* ── Footer ── */}
       <footer className={`${t.footer} border-t p-3 sm:p-5 sticky bottom-0 backdrop-blur-md`}>
         <div className="max-w-4xl mx-auto flex justify-between items-center gap-2">
+
           <button
             onClick={handleBack}
             disabled={currentStep === 0}
-            className={`flex items-center gap-1.5 px-3 sm:px-5 py-2.5 font-bold text-sm ${t.textMuted} hover:${t.textPrimary} disabled:opacity-0 transition-all rounded-xl ${t.surfaceHover} shrink-0`}
+            className={`flex items-center gap-1.5 px-3 sm:px-5 py-2.5 font-bold text-sm ${t.textMuted} disabled:opacity-0 transition-all rounded-xl ${t.surfaceHover} shrink-0`}
           >
             <ArrowLeft size={15} /> Back
           </button>
 
           <div className="flex items-center gap-2">
+            {/* Step 1 — Skip Cover + Download without cover */}
             {currentStep === 1 && (
               <>
                 <button
@@ -129,6 +243,7 @@ export const MainContainer = ({ children }: { children: React.ReactNode }) => {
               </>
             )}
 
+            {/* Final Download */}
             {currentStep === 2 ? (
               <button
                 onClick={handleFinalDownload}
@@ -155,6 +270,31 @@ export const MainContainer = ({ children }: { children: React.ReactNode }) => {
           </div>
         </div>
       </footer>
+
+      {/* ── Modals ── */}
+      <CoverToolModal
+        isOpen={activeModal === "cover-tool"}
+        onClose={() => setActiveModal(null)}
+        theme={t}
+        isDark={isDark}
+      />
+      <AddUserModal
+        isOpen={activeModal === "user"}
+        onClose={() => setActiveModal(null)}
+        theme={t}
+      />
+      {profile?.role === "super_admin" && (
+        <UserControlModal
+          isOpen={activeModal === "list"}
+          onClose={() => setActiveModal(null)}
+          theme={t}
+        />
+      )}
+      <ChangePasswordModal
+        isOpen={activeModal === "password"}
+        onClose={() => setActiveModal(null)}
+        theme={t}
+      />
     </div>
   );
 };

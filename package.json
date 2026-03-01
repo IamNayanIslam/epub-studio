@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@jsquash/jpeg": "^1.6.0",
+    "@supabase/supabase-js": "^2.98.0",
     "clsx": "^2.1.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.575.0",

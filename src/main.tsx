@@ -3,11 +3,14 @@ import "./index.css";
 import App from "./App.tsx";
 import { EpubProvider } from "./Store/EpubContext.tsx";
 import { ThemeProvider } from "./Store/ThemeContext.tsx";
+import { AuthProvider } from "./Store/AuthContext.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <EpubProvider>
     <ThemeProvider>
-      <App />
+      <AuthProvider>
+        <App />
+      </AuthProvider>
     </ThemeProvider>
   </EpubProvider>,
 );
