@@ -87,7 +87,7 @@ function toXhtmlContent(html: string): string {
 }
 
 // ── Section XHTML template ───────────────────────────────────────────────
-function makeSectionXhtml(title: string, content: string, bookTitle: string): string {
+function makeSectionXhtml(content: string, bookTitle: string): string {
   return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
   "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
