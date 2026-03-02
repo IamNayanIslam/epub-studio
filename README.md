@@ -7,7 +7,8 @@
 ## ✨ Features
 
 ### 📤 Step 1 — Upload & Clean
-- Drag & drop or click to upload `.epub` files
+- Drag & drop or click to upload `.epub` or `.docx` files
+- **DOCX support** — automatically converts Word documents to EPUB before processing
 - Auto-detects Bengali split points (e.g. `১.`, `২.`, `৩.`)
 - Automatically splits EPUB into multiple sections based on detected points
 - Converts curly double quotes (`"..."`) inside paragraph text to Bengali-style single quotes (`'...'`)
@@ -20,6 +21,7 @@
 - Logo style: **Blue** or **White**
 - Logo position: **Top Right** or **Bottom Right**
 - Adjustable logo size (10%–40%) and margin offset (0–100px)
+- **Add Background** option — adds a colored background behind the logo for better contrast
 - Injects a **plain cover** (no logo) into the EPUB for clean ebook display
 - Generates a **branded thumbnail** (with logo) for download — for social media / store listings
 - Uses **MozJPEG** (`@jsquash/jpeg`) encoder for Sharp-like quality at small file sizes (~50–80kb)
@@ -32,8 +34,47 @@
   - **Genre / Subject** (comma-separated, multiple supported) → `dc:subject`
   - **Publisher** → `dc:publisher` (default: Boitoi)
   - **Language** → `dc:language` (default: `bn`)
+- **Form validation** — required fields highlighted before download is allowed
 - Modification date auto-set to today
 - On download, metadata is written into the OPF file before generating the final EPUB
+- **State resets** after successful download — ready for the next book immediately
+
+---
+
+## 🛠️ Tools (Settings Menu)
+
+### 🖼️ Create Cover
+Standalone cover generator — upload any image and generate:
+- **Cover** — plain image (no logo), 395×632px, for EPUB injection
+- **Thumbnail** — branded image with logo overlay, for social media / store listings
+- Full logo customization: color, position, size, margin, background
+
+### 🗜️ Compress EPUB
+Reduces EPUB file size by:
+- Converting PNG images (except cover) to JPG using MozJPEG
+- Recompressing large JPG/WEBP images (100KB+) at quality 82
+- Updating all internal references automatically
+- Shows compression stats: files converted, size saved
+
+### 📄 DOCX → EPUB
+Standalone Word document to EPUB converter:
+- Upload any `.docx` file
+- Detects H1/H2 headings as chapter split points
+- Preserves bold, italic, and paragraph formatting
+- Outputs a valid EPUB 2.0 file with proper OPF, NCX, and XHTML structure
+- Fully configurable metadata: title, author, publisher, language
+
+---
+
+## 🔐 Authentication & Roles
+
+Role-based access control powered by Supabase:
+
+| Role | Permissions |
+|------|-------------|
+| `super_admin` | Full access — can add admins and editors, manage all users |
+| `admin` | Can add editors only, manage user passwords |
+| `editor` | Access to all EPUB processing tools only |
 
 ---
 
@@ -45,9 +86,11 @@
 | Build Tool | Vite |
 | Styling | Tailwind CSS |
 | EPUB Processing | JSZip |
+| DOCX Parsing | mammoth |
 | Image Encoding | @jsquash/jpeg (MozJPEG WASM) |
 | File Upload | react-dropzone |
 | Icons | lucide-react |
+| Auth & Database | Supabase |
 | State Management | React Context + useReducer |
 | Deployment | Vercel |
 | PWA | vite-plugin-pwa |
@@ -58,21 +101,30 @@
 
 ```
 src/
-├── Steps/
-│   ├── UploadStep.tsx       # Step 1 — file upload, split detection
-│   ├── CoverStep.tsx        # Step 2 — cover image, logo overlay
-│   └── MetadataStep.tsx     # Step 3 — metadata form + OPF update
+├── Components/
+│   ├── Steps/
+│   │   ├── UploadStep.tsx       # Step 1 — file upload, DOCX conversion, split detection
+│   │   ├── CoverStep.tsx        # Step 2 — cover image, logo overlay
+│   │   └── MetadataStep.tsx     # Step 3 — metadata form + OPF update
+│   └── Modals/
+│       ├── CoverToolModal.tsx   # Standalone cover/thumbnail generator
+│       ├── CompressEpubModal.tsx # EPUB image compression tool
+│       ├── DocxToEpubModal.tsx  # DOCX to EPUB converter
+│       ├── AddUserModal.tsx     # Add new user (admin/editor)
+│       ├── UserControlModal.tsx # Manage existing users
+│       └── ChangePasswordModal.tsx
 ├── Store/
-│   ├── EpubContext.tsx      # Global state provider
-│   ├── EpubReducer.ts       # State reducer
-│   ├── ThemeContext.tsx      # Light/dark theme + color tokens
-│   └── Types.ts             # TypeScript interfaces
+│   ├── EpubContext.tsx          # Global state provider
+│   ├── EpubReducer.ts           # State reducer + initial state
+│   ├── ThemeContext.tsx         # Light/dark theme + color tokens
+│   └── Types.ts                 # TypeScript interfaces
 ├── Utils/
-│   ├── EpubProcessor.ts     # Split point detection & validation
-│   ├── EpubSplit.ts         # EPUB splitting logic + quote cleaning
-│   ├── EpubDownloader.ts    # Cover injection into EPUB blob
-│   └── CoverProcessor.ts   # Cover/thumbnail generation utility
-└── MainContainer.tsx        # App shell — header, stepper, footer nav
+│   ├── EpubProcessor.ts         # Split point detection & validation
+│   ├── EpubSplit.ts             # EPUB splitting logic + quote cleaning
+│   ├── EpubDownloader.ts        # Cover injection into EPUB blob
+│   ├── CoverProcessor.ts        # Cover/thumbnail generation utility
+│   └── supabaseClient.ts        # Supabase auth client
+└── MainContainer.tsx            # App shell — header, stepper, footer nav
 ```
 
 ---
@@ -110,7 +162,9 @@ npm run build
 ### EPUB Processing Flow
 
 ```
-Upload EPUB
+Upload EPUB or DOCX
+    ↓
+[DOCX only] mammoth → HTML → EPUB conversion
     ↓
 Detect split points (১. ২. ৩. ...)
     ↓
@@ -121,11 +175,11 @@ Split into Section0000.xhtml, Section0001.xhtml, ...
 Update OPF manifest + spine
 Update NCX table of contents
     ↓
-[Optional] Inject plain cover image
+[Optional] Inject plain cover image + title/author into cover.xhtml
     ↓
 [Optional] Update metadata in OPF
     ↓
-Download final EPUB
+Download final EPUB → state resets
 ```
 
 ### Section Naming Convention
@@ -168,6 +222,7 @@ Epub Studio is a Progressive Web App:
 | Logo Margin | 18px |
 | JPEG Quality | 80 |
 | Words per split (suggestion) | 1500 |
+| Add Background | Off |
 
 ---
 
@@ -181,3 +236,4 @@ This project is proprietary software owned by [Boitoi](https://boitoi.com.bd). A
 
 **Nayan Islam**  
 GitHub: [@IamNayanIslam](https://github.com/IamNayanIslam)
+
