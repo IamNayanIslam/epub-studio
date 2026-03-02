@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   ChevronRight, Download, ArrowLeft, Loader2,
-  Sun, Moon, Settings, UserPlus, LogOut, Key, Users, ImagePlus, FileArchive,
+  Sun, Moon, Settings, UserPlus, LogOut, Key, Users, ImagePlus, FileArchive, FileText,
 } from "lucide-react";
 import { useEpub } from "./Store/EpubContext";
 import { useTheme, tokens } from "./Store/ThemeContext";
@@ -14,6 +14,7 @@ import { UserControlModal } from "./Components/Modals/UserControlModal";
 import { ChangePasswordModal } from "./Components/Modals/ChangePasswordModal";
 import { CoverToolModal } from "./Components/Modals/CoverToolModal";
 import { CompressEpubModal } from "./Components/Modals/CompressEpubModal";
+import { DocxToEpubModal } from "./Components/Modals/DocxToEpubModal";
 
 const steps = [
   { id: 0, title: "Upload & Clean" },
@@ -28,7 +29,7 @@ export const MainContainer = ({ children }: { children: React.ReactNode }) => {
   const t = isDark ? tokens.dark : tokens.light;
   const { currentStep, originalFile, processedBlob } = state;
   const [isDownloading, setIsDownloading] = useState(false);
-  const [activeModal, setActiveModal] = useState<"user" | "list" | "password" | "cover-tool" | "compress" | null>(null);
+  const [activeModal, setActiveModal] = useState<"user" | "list" | "password" | "cover-tool" | "compress" | "docx-epub" | null>(null);
   const [showTools, setShowTools] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
 
@@ -155,6 +156,12 @@ export const MainContainer = ({ children }: { children: React.ReactNode }) => {
                       className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold ${t.textSecondary} hover:bg-blue-600 hover:text-white rounded-xl transition-all text-left`}
                     >
                       <FileArchive size={16} /> Compress EPUB
+                    </button>
+                    <button
+                      onClick={() => { setActiveModal("docx-epub"); setShowTools(false); }}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold ${t.textSecondary} hover:bg-blue-600 hover:text-white rounded-xl transition-all text-left`}
+                    >
+                      <FileText size={16} /> DOCX → EPUB
                     </button>
 
                     {/* Management — Admin/Super Admin */}
@@ -299,6 +306,12 @@ export const MainContainer = ({ children }: { children: React.ReactNode }) => {
       />
       <CompressEpubModal
         isOpen={activeModal === "compress"}
+        onClose={() => setActiveModal(null)}
+        theme={t}
+        isDark={isDark}
+      />
+      <DocxToEpubModal
+        isOpen={activeModal === "docx-epub"}
         onClose={() => setActiveModal(null)}
         theme={t}
         isDark={isDark}
