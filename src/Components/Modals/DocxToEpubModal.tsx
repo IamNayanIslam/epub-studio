@@ -87,13 +87,13 @@ function toXhtmlContent(html: string): string {
 }
 
 // ── Section XHTML template ───────────────────────────────────────────────
-function makeSectionXhtml(title: string, content: string): string {
+function makeSectionXhtml(title: string, content: string, bookTitle: string): string {
   return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
   "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-  <title>${title}</title>
+  <title>${bookTitle}</title>
   <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=utf-8"/>
   <style type="text/css">p { margin-top: 0.8em; margin-bottom: 0; }</style>
 </head>
@@ -106,7 +106,10 @@ function makeSectionXhtml(title: string, content: string): string {
 // ── OPF (content.opf) ────────────────────────────────────────────────────
 function makeOpf(meta: EpubMeta, chapters: Chapter[], uid: string): string {
   const manifestItems = chapters
-    .map((c) => `    <item id="section${String(c.index).padStart(4, "0")}" href="Text/Section${String(c.index).padStart(4, "0")}.xhtml" media-type="application/xhtml+xml"/>`)
+    .map((c) => {
+      const fname = chapters.length === 1 ? "main.xhtml" : `main${String(c.index).padStart(4, "0")}.xhtml`;
+      return `    <item id="section${String(c.index).padStart(4, "0")}" href="Text/${fname}" media-type="application/xhtml+xml"/>`;
+    })
     .join("\n");
 
   const spineItems = chapters
@@ -138,10 +141,13 @@ ${spineItems}
 // ── NCX (toc.ncx) ────────────────────────────────────────────────────────
 function makeNcx(meta: EpubMeta, chapters: Chapter[], uid: string): string {
   const navPoints = chapters
-    .map((c, i) => `  <navPoint id="navPoint-${i + 1}" playOrder="${i + 1}">
+    .map((c, i) => {
+      const fname = chapters.length === 1 ? "main.xhtml" : `main${String(c.index).padStart(4, "0")}.xhtml`;
+      return `  <navPoint id="navPoint-${i + 1}" playOrder="${i + 1}">
     <navLabel><text>${c.title}</text></navLabel>
-    <content src="Text/Section${String(c.index).padStart(4, "0")}.xhtml"/>
-  </navPoint>`)
+    <content src="Text/${fname}"/>
+  </navPoint>`;
+    })
     .join("\n");
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -191,8 +197,10 @@ async function buildEpub(meta: EpubMeta, chapters: Chapter[]): Promise<Blob> {
 
   // Sections
   for (const chapter of chapters) {
-    const filename = `Section${String(chapter.index).padStart(4, "0")}.xhtml`;
-    zip.file(`OEBPS/Text/${filename}`, makeSectionXhtml(chapter.title, chapter.content));
+    const filename = chapters.length === 1
+      ? "main.xhtml"
+      : `main${String(chapter.index).padStart(4, "0")}.xhtml`;
+    zip.file(`OEBPS/Text/${filename}`, makeSectionXhtml(chapter.title, chapter.content, meta.title));
   }
 
   return await zip.generateAsync({
