@@ -9,9 +9,10 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   theme: any;
+  currentUserRole?: string;
 }
 
-export const AddUserModal = ({ isOpen, onClose, theme: t }: Props) => {
+export const AddUserModal = ({ isOpen, onClose, theme: t, currentUserRole }: Props) => {
   const [formData, setFormData] = useState({
     fullName: "", email: "", password: "", role: "editor",
   });
@@ -138,7 +139,9 @@ export const AddUserModal = ({ isOpen, onClose, theme: t }: Props) => {
                   className={`w-full px-4 py-3.5 rounded-2xl border ${t.cardBorder} ${t.card} ${t.textPrimary} text-sm font-black capitalize outline-none focus:ring-2 focus:ring-blue-500/30 appearance-none cursor-pointer`}
                 >
                   <option value="editor">Editor</option>
-                  <option value="admin">Admin</option>
+                  {currentUserRole === "super_admin" && (
+                    <option value="admin">Admin</option>
+                  )}
                 </select>
                 <ChevronDown size={14} className={`absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none ${t.textMuted}`} />
               </div>

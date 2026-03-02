@@ -307,6 +307,7 @@ export const MainContainer = ({ children }: { children: React.ReactNode }) => {
         isOpen={activeModal === "user"}
         onClose={() => setActiveModal(null)}
         theme={t}
+        currentUserRole={profile?.role}
       />
       {profile?.role === "super_admin" && (
         <UserControlModal
