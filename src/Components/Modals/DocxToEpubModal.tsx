@@ -82,7 +82,8 @@ function toXhtmlContent(html: string): string {
     .replace(/<hr([^>]*)>/gi, "<hr$1/>")
     .replace(/<input([^>]*)>/gi, "<input$1/>")
     .replace(/&nbsp;/g, "&#160;")
-    .replace(/&(?!(amp|lt|gt|quot|apos|#\d+|#x[\da-f]+);)/gi, "&amp;");
+    .replace(/&(?!(amp|lt|gt|quot|apos|#\d+|#x[\da-f]+);)/gi, "&amp;")
+    .replace(/<\/p>\s*<p/gi, "</p>\n\n<p");
 }
 
 // ── Section XHTML template ───────────────────────────────────────────────
@@ -94,6 +95,7 @@ function makeSectionXhtml(title: string, content: string): string {
 <head>
   <title>${title}</title>
   <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=utf-8"/>
+  <style type="text/css">p { margin-top: 0.8em; margin-bottom: 0; }</style>
 </head>
 <body>
   ${toXhtmlContent(content)}
