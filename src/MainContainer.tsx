@@ -65,6 +65,7 @@ export const MainContainer = ({ children }: { children: React.ReactNode }) => {
       }
       const updatedBlob = await updateMetadataInBlob(blob, state.metadata);
       downloadBlob(updatedBlob, title);
+      dispatch({ type: "RESET" });
     } catch (error) {
       console.error("Download Error:", error);
     } finally {
