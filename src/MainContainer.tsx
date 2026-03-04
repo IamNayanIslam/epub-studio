@@ -7,7 +7,7 @@ import { useEpub } from "./Store/EpubContext";
 import { useTheme, tokens } from "./Store/ThemeContext";
 import { useAuth } from "./Store/AuthContext";
 import { supabase } from "./Utils/supabaseClient";
-import { downloadBlob, updateCoverXhtmlMetadata } from "./Utils/EpubDownloader";
+import { downloadBlob, updateCoverXhtmlMetadata, generatePreviewEpub, downloadPreviewBlob } from "./Utils/EpubDownloader";
 import { AddUserModal } from "./Components/Modals/AddUserModal";
 import { updateMetadataInBlob, validateMetadata } from "./Components/Steps/MetadataStep";
 import { UserControlModal } from "./Components/Modals/UserControlModal";
@@ -29,6 +29,7 @@ export const MainContainer = ({ children }: { children: React.ReactNode }) => {
   const t = isDark ? tokens.dark : tokens.light;
   const { currentStep, originalFile, processedBlob } = state;
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isPreviewDownloading, setIsPreviewDownloading] = useState(false);
   const [activeModal, setActiveModal] = useState<"user" | "list" | "password" | "cover-tool" | "compress" | "docx-epub" | null>(null);
   const [showTools, setShowTools] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -71,6 +72,33 @@ export const MainContainer = ({ children }: { children: React.ReactNode }) => {
       console.error("Download Error:", error);
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const handlePreviewDownload = async () => {
+    if (!processedBlob) { alert("প্রথমে file upload করুন!"); return; }
+
+    const emptyFields = validateMetadata(state.metadata);
+    if (emptyFields.length > 0) {
+      alert(`নিচের field গুলো পূরণ করুন:\n\n• ${emptyFields.join("\n• ")}`);
+      return;
+    }
+
+    setIsPreviewDownloading(true);
+    try {
+      const title = state.metadata?.title || "Updated_Book";
+      const authorBengali = state.metadata?.authorBengali || "";
+      let blob = processedBlob;
+      if (state.coverImage) {
+        blob = await updateCoverXhtmlMetadata(blob, title, authorBengali);
+      }
+      const updatedBlob = await updateMetadataInBlob(blob, state.metadata);
+      const previewBlob = await generatePreviewEpub(updatedBlob, title);
+      downloadPreviewBlob(previewBlob, title);
+    } catch (error) {
+      console.error("Preview Download Error:", error);
+    } finally {
+      setIsPreviewDownloading(false);
     }
   };
 
@@ -271,17 +299,37 @@ export const MainContainer = ({ children }: { children: React.ReactNode }) => {
 
             {/* Final Download */}
             {currentStep === 2 ? (
-              <button
-                onClick={handleFinalDownload}
-                disabled={isDownloading || !processedBlob}
-                className="flex items-center gap-2 px-5 sm:px-8 py-2.5 sm:py-3 bg-green-600 text-white rounded-xl font-black shadow-lg shadow-green-500/20 hover:bg-green-700 active:scale-95 transition-all text-xs sm:text-sm uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-              >
-                {isDownloading ? (
-                  <><Loader2 size={16} className="animate-spin" /><span className="hidden sm:inline">Processing...</span><span className="sm:hidden">Wait...</span></>
-                ) : (
-                  <><Download size={16} /><span className="hidden sm:inline">Finish & Download</span><span className="sm:hidden">Download</span></>
-                )}
-              </button>
+              <div className="flex items-center gap-2">
+                {/* Preview Download */}
+                <button
+                  onClick={handlePreviewDownload}
+                  disabled={isPreviewDownloading || isDownloading || !processedBlob}
+                  className={`flex items-center gap-1.5 px-3 sm:px-5 py-2.5 sm:py-3 rounded-xl font-black border-2 transition-all text-xs sm:text-sm uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap active:scale-95 ${
+                    isDark
+                      ? "border-amber-700/50 bg-amber-900/20 text-amber-400 hover:border-amber-500 hover:bg-amber-900/40"
+                      : "border-amber-300 bg-amber-50 text-amber-700 hover:border-amber-500 hover:bg-amber-100"
+                  }`}
+                >
+                  {isPreviewDownloading ? (
+                    <><Loader2 size={14} className="animate-spin" /><span className="hidden sm:inline">Processing...</span></>
+                  ) : (
+                    <><Download size={14} /><span className="hidden sm:inline">Preview</span><span className="sm:hidden">Preview</span></>
+                  )}
+                </button>
+
+                {/* Final Download */}
+                <button
+                  onClick={handleFinalDownload}
+                  disabled={isDownloading || isPreviewDownloading || !processedBlob}
+                  className="flex items-center gap-2 px-5 sm:px-8 py-2.5 sm:py-3 bg-green-600 text-white rounded-xl font-black shadow-lg shadow-green-500/20 hover:bg-green-700 active:scale-95 transition-all text-xs sm:text-sm uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                >
+                  {isDownloading ? (
+                    <><Loader2 size={16} className="animate-spin" /><span className="hidden sm:inline">Processing...</span><span className="sm:hidden">Wait...</span></>
+                  ) : (
+                    <><Download size={16} /><span className="hidden sm:inline">Finish & Download</span><span className="sm:hidden">Download</span></>
+                  )}
+                </button>
+              </div>
             ) : (
               <button
                 onClick={handleNext}

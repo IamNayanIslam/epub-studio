@@ -167,7 +167,176 @@ export const updateCoverXhtmlMetadata = async (
   });
 };
 
-// ── Final download ────────────────────────────────────────────────────────
+// ── Preview EPUB generate ─────────────────────────────────────────────────
+// - শুধু Section0001.xhtml রাখে (text অর্ধেক + শেষে ......)
+// - cover.xhtml + cover image বাদ দেয়
+// - NCX এ সব navPoints রাখে কিন্তু Section0001 ছাড়া src="toc#missing"
+// - OPF manifest/spine এ শুধু Section0001
+export const generatePreviewEpub = async (
+  epubBlob: Blob,
+  bookTitle: string = "book",
+): Promise<Blob> => {
+  const srcZip = new JSZip();
+  const content = await srcZip.loadAsync(await epubBlob.arrayBuffer());
+
+  const opfPath = Object.keys(content.files).find((p) => p.endsWith(".opf"));
+  if (!opfPath) throw new Error("OPF file not found!");
+
+  const opfDir = opfPath.split("/").slice(0, -1).join("/");
+  const opfContent = await content.file(opfPath)!.async("string");
+
+  // ── Section0001 খোঁজা ────────────────────────────────────────────────
+  const section0001Path = Object.keys(content.files).find((p) =>
+    p.includes("Section0001.xhtml") || p.includes("section0001.xhtml")
+  );
+  if (!section0001Path) throw new Error("Section0001.xhtml not found!");
+
+  // ── Section0001 text অর্ধেক করা ─────────────────────────────────────
+  const originalXhtml = await content.file(section0001Path)!.async("string");
+
+  // <p> tags গুলো বের করো
+  const pMatches = [...originalXhtml.matchAll(/<p[\s\S]*?<\/p>/gi)];
+  const halfCount = Math.ceil(pMatches.length / 2);
+  const keptParagraphs = pMatches.slice(0, halfCount);
+
+  // body content rebuild করো — শেষ paragraph এ ...... যোগ
+  const lastP = keptParagraphs[keptParagraphs.length - 1];
+  const truncatedLastP = lastP
+    ? lastP[0].replace(
+        // </p> এর আগের trailing punctuation সরিয়ে ...... যোগ
+        /([।,!?'"'"'""…\s]+)(<\/p>)$/,
+        "......$2"
+      )
+    : "<p>......</p>";
+
+  const rebuiltParagraphs = [
+    ...keptParagraphs.slice(0, -1).map((m) => m[0]),
+    truncatedLastP,
+  ].join("\n");
+
+  // original body content replace
+  const previewXhtml = originalXhtml.replace(
+    /<body>([\s\S]*?)<\/body>/i,
+    (_match, originalBody) => {
+      // original body থেকে <h2> heading বের করো
+      const h2Match = originalBody.match(/<h2[^>]*>[\s\S]*?<\/h2>/i);
+      const h2Tag = h2Match ? h2Match[0] : "";
+
+      return `<body>\n${h2Tag ? h2Tag + "\n" : ""}${rebuiltParagraphs}\n<br/>\n</body>`;
+    },
+  );
+
+  // ── NCX parse করা ────────────────────────────────────────────────────
+  const ncxPath = Object.keys(content.files).find((p) => p.endsWith(".ncx"));
+  let previewNcx = "";
+
+  if (ncxPath) {
+    const ncxContent = await content.file(ncxPath)!.async("string");
+
+    // সব navPoint এর src — Section0001 ছাড়া toc#missing
+    previewNcx = ncxContent.replace(
+      /<content\s+src="([^"]+)"/g,
+      (match, src) => {
+        if (src.includes("Section0001") || src.includes("section0001")) {
+          return match; // Section0001 এর src ঠিক রাখো
+        }
+        return `<content src="toc#missing"`;
+      },
+    );
+  }
+
+  // ── OPF — শুধু Section0001 manifest + spine ──────────────────────────
+  // manifest এ cover-image, cover-xhtml, Section0001 ছাড়া সব item বাদ
+  const section0001Href = section0001Path.replace(`${opfDir}/`, "");
+
+  // manifest items — শুধু ncx আর Section0001 রাখো
+  let previewOpf = opfContent.replace(
+    /<manifest>([\s\S]*?)<\/manifest>/i,
+    (_match, manifestContent) => {
+      const items = [...manifestContent.matchAll(/<item[^>]+>/gi)];
+      const kept = items.filter((item) => {
+        const href = item[0].match(/href="([^"]+)"/)?.[1] || "";
+        const id = item[0].match(/id="([^"]+)"/)?.[1] || "";
+        return (
+          id === "ncx" ||
+          href === section0001Href ||
+          href.includes("Section0001")
+        );
+      });
+      return `<manifest>\n${kept.map((i) => `    ${i[0]}`).join("\n")}\n  </manifest>`;
+    },
+  );
+
+  // spine — শুধু Section0001
+  previewOpf = previewOpf.replace(
+    /<spine[^>]*>([\s\S]*?)<\/spine>/i,
+    (match) => {
+      const spineOpen = match.match(/<spine[^>]*>/)?.[0] || "<spine>";
+      const itemrefs = [...match.matchAll(/<itemref[^>]+>/gi)];
+      const kept = itemrefs.filter((ir) => {
+        const idref = ir[0].match(/idref="([^"]+)"/)?.[1] || "";
+        return idref.includes("Section0001") || idref.includes("section0001");
+      });
+      return `${spineOpen}\n${kept.map((i) => `    ${i[0]}`).join("\n")}\n  </spine>`;
+    },
+  );
+
+  // ── নতুন ZIP বানানো ──────────────────────────────────────────────────
+  const previewZip = new JSZip();
+
+  // mimetype
+  previewZip.file("mimetype", "application/epub+zip", { compression: "STORE" });
+
+  // সব ফাইল copy — cover, extra sections, cover image বাদ দিয়ে
+  for (const [filePath, file] of Object.entries(content.files)) {
+    if (file.dir) continue;
+
+    const lp = filePath.toLowerCase();
+
+    // বাদ দেওয়া files:
+    // 1. cover.xhtml
+    // 2. cover image (Images/cover.*)
+    // 3. Section0001 ছাড়া অন্য সব Section*.xhtml
+    const isCoverXhtml = lp.includes("cover") && lp.endsWith(".xhtml");
+    const isCoverImage = lp.includes("images/cover.");
+    const isSectionFile = /section\d+\.xhtml$/i.test(filePath);
+    const isSection0001 = /section0001\.xhtml$/i.test(filePath);
+
+    if (isCoverXhtml) continue;
+    if (isCoverImage) continue;
+    if (isSectionFile && !isSection0001) continue;
+
+    // OPF, NCX, Section0001 — modified version
+    if (filePath === opfPath) {
+      previewZip.file(filePath, previewOpf);
+    } else if (ncxPath && filePath === ncxPath) {
+      previewZip.file(filePath, previewNcx);
+    } else if (filePath === section0001Path) {
+      previewZip.file(filePath, previewXhtml);
+    } else {
+      previewZip.file(filePath, await file.async("uint8array"));
+    }
+  }
+
+  return await previewZip.generateAsync({
+    type: "blob",
+    mimeType: "application/epub+zip",
+    compression: "DEFLATE",
+    compressionOptions: { level: 9 },
+  });
+};
+
+// ── Preview download ──────────────────────────────────────────────────────
+export const downloadPreviewBlob = (blob: Blob, bookTitle: string = "book") => {
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.href = url;
+  link.download = `${bookTitle.replace(/\s+/g, "_") || "boitoi_book"}.preview.epub`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 100);
+};
 export const downloadBlob = (blob: Blob, bookTitle: string = "book") => {
   const link = document.createElement("a");
   const url = URL.createObjectURL(blob);
