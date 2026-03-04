@@ -174,7 +174,7 @@ export const updateCoverXhtmlMetadata = async (
 // - OPF manifest/spine এ শুধু Section0001
 export const generatePreviewEpub = async (
   epubBlob: Blob,
-  bookTitle: string = "book",
+  _bookTitle: string = "book",
 ): Promise<Blob> => {
   const srcZip = new JSZip();
   const content = await srcZip.loadAsync(await epubBlob.arrayBuffer());
