@@ -25,7 +25,6 @@ const BENGALI_NUM_WORDS = [
 ];
 
 const SPLIT_PATTERN = /<p[^>]*?>\s*([০-৯\d]+)\.\s*<\/p>/g;
-const HEADING_IDENTIFIER = "##";
 const TARGET_XHTML = "main.xhtml";
 
 const cleanQuotes = (html: string) => {

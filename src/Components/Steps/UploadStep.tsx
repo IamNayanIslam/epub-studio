@@ -8,7 +8,6 @@ import { useTheme, tokens } from "../../Store/ThemeContext";
 import mammoth from "mammoth";
 import JSZip from "jszip";
 
-
 interface ModalState {
   type: "missing-points" | "no-points";
   data: { wordCount: number; missingPoints?: number[]; totalSplits?: number };
@@ -183,6 +182,7 @@ const UploadStep = () => {
   const [customSplitCount, setCustomSplitCount] = useState<number>(0);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [splitMode, setSplitMode] = useState<"count" | "heading">("count");
+  const [isDocx, setIsDocx] = useState(false);
 
   const runSplitAndDispatch = async (
     file: File,
