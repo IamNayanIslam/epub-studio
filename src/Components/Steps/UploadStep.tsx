@@ -1,16 +1,13 @@
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { Upload, FileWarning, Loader2, CheckCircle2, FileText } from "lucide-react";
-// import { processEpubFile } from "../Utils/EpubProcessor";
-// import { processAndSplitEpub } from "../Utils/EpubSplit";
-// import { useEpub } from "../Store/EpubContext";
-// import { useTheme, tokens } from "../Store/ThemeContext";
-import mammoth from "mammoth";
-import JSZip from "jszip";
 import { processEpubFile } from "../../Utils/EpubProcessor";
 import { processAndSplitEpub } from "../../Utils/EpubSplit";
 import { useEpub } from "../../Store/EpubContext";
-import { tokens, useTheme } from "../../Store/ThemeContext";
+import { useTheme, tokens } from "../../Store/ThemeContext";
+import mammoth from "mammoth";
+import JSZip from "jszip";
+
 
 interface ModalState {
   type: "missing-points" | "no-points";
@@ -185,11 +182,11 @@ const UploadStep = () => {
   const [showModal, setShowModal] = useState<ModalState | null>(null);
   const [customSplitCount, setCustomSplitCount] = useState<number>(0);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [isDocx, setIsDocx] = useState(false);
+  const [splitMode, setSplitMode] = useState<"count" | "heading">("count");
 
   const runSplitAndDispatch = async (
     file: File,
-    splitConfig: { isManual: boolean; count: number },
+    splitConfig: { isManual: boolean; count: number; mode?: "auto" | "manual" | "heading" },
   ) => {
     const blob = await processAndSplitEpub(file, splitConfig);
     dispatch({ type: "SET_PROCESSED_BLOB", payload: blob });
@@ -262,14 +259,17 @@ const UploadStep = () => {
 
   const handleModalAction = async () => {
     if (!showModal || !uploadedFile) return;
-    let splitConfig: { isManual: boolean; count: number };
+    let splitConfig: { isManual: boolean; count: number; mode?: "auto" | "manual" | "heading" };
 
-    if (showModal.type === "no-points") {
-      splitConfig = { isManual: false, count: customSplitCount };
+    if (showModal.type === "no-points" && splitMode === "heading") {
+      splitConfig = { isManual: false, count: 0, mode: "heading" };
+      dispatch({ type: "UPDATE_SPLIT_CONFIG", payload: { isManual: false, splitCount: 0 } });
+    } else if (showModal.type === "no-points") {
+      splitConfig = { isManual: false, count: customSplitCount, mode: "manual" };
       dispatch({ type: "UPDATE_SPLIT_CONFIG", payload: { isManual: false, splitCount: customSplitCount } });
     } else {
       const totalSplits: number = showModal.data.totalSplits ?? 0;
-      splitConfig = { isManual: true, count: totalSplits };
+      splitConfig = { isManual: true, count: totalSplits, mode: "auto" };
       dispatch({ type: "UPDATE_SPLIT_CONFIG", payload: { isManual: true, splitCount: totalSplits } });
     }
 
@@ -374,20 +374,60 @@ const UploadStep = () => {
                     কোনো নির্ধারিত স্প্লিট প্যাটার্ন পাওয়া যায়নি। মোট শব্দ:{" "}
                     <span className={`font-bold ${t.textPrimary}`}>{showModal.data.wordCount}</span>
                   </p>
-                  <div className={`${isDark ? "bg-blue-900/20 border-blue-800" : "bg-blue-50 border-blue-100"} p-4 rounded-xl border`}>
-                    <label className="block text-xs font-bold text-blue-500 mb-2 uppercase tracking-widest">
-                      How many splits?
-                    </label>
-                    <input
-                      type="number"
-                      value={customSplitCount}
-                      onChange={(e) => setCustomSplitCount(parseInt(e.target.value) || 1)}
-                      className={`w-full border-2 rounded-lg px-3 py-2 font-bold outline-none transition-all text-sm ${isDark ? "bg-[#252836] border-blue-800 text-gray-100 focus:border-blue-500" : "bg-white border-blue-200 text-blue-800 focus:border-blue-500"}`}
-                    />
-                    <p className="text-[10px] text-blue-400 mt-2 italic">
-                      *১৫০০ শব্দে ১টি হিসেবে {Math.ceil(showModal.data.wordCount / 1500)}টি সাজেস্ট করছি।
-                    </p>
+
+                  {/* Mode selector */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setSplitMode("count")}
+                      className={`py-2.5 rounded-xl font-bold text-xs border-2 transition-all ${
+                        splitMode === "count"
+                          ? "border-blue-600 bg-blue-600 text-white"
+                          : isDark ? "border-[#2A2D3E] bg-[#252836] text-gray-400" : "border-gray-200 bg-gray-50 text-gray-500"
+                      }`}
+                    >
+                      Word Count দিয়ে
+                    </button>
+                    <button
+                      onClick={() => setSplitMode("heading")}
+                      className={`py-2.5 rounded-xl font-bold text-xs border-2 transition-all ${
+                        splitMode === "heading"
+                          ? "border-purple-600 bg-purple-600 text-white"
+                          : isDark ? "border-[#2A2D3E] bg-[#252836] text-gray-400" : "border-gray-200 bg-gray-50 text-gray-500"
+                      }`}
+                    >
+                      ## Heading দিয়ে
+                    </button>
                   </div>
+
+                  {splitMode === "count" ? (
+                    <div className={`${isDark ? "bg-blue-900/20 border-blue-800" : "bg-blue-50 border-blue-100"} p-4 rounded-xl border`}>
+                      <label className="block text-xs font-bold text-blue-500 mb-2 uppercase tracking-widest">
+                        How many splits?
+                      </label>
+                      <input
+                        type="number"
+                        value={customSplitCount}
+                        onChange={(e) => setCustomSplitCount(parseInt(e.target.value) || 1)}
+                        className={`w-full border-2 rounded-lg px-3 py-2 font-bold outline-none transition-all text-sm ${isDark ? "bg-[#252836] border-blue-800 text-gray-100 focus:border-blue-500" : "bg-white border-blue-200 text-blue-800 focus:border-blue-500"}`}
+                      />
+                      <p className="text-[10px] text-blue-400 mt-2 italic">
+                        *১৫০০ শব্দে ১টি হিসেবে {Math.ceil(showModal.data.wordCount / 1500)}টি সাজেস্ট করছি।
+                      </p>
+                    </div>
+                  ) : (
+                    <div className={`${isDark ? "bg-purple-900/20 border-purple-800" : "bg-purple-50 border-purple-100"} p-4 rounded-xl border space-y-2`}>
+                      <p className={`text-xs font-bold ${isDark ? "text-purple-400" : "text-purple-700"}`}>
+                        EPUB এর xhtml ফাইলে অধ্যায়ের নামের আগে <code className="bg-black/20 px-1 rounded">##</code> যোগ করুন:
+                      </p>
+                      <div className={`text-xs font-mono p-2 rounded-lg ${isDark ? "bg-black/30 text-purple-300" : "bg-white text-purple-800"}`}>
+                        <div>&lt;p&gt;##এইটা একটা অধ্যায়&lt;/p&gt;</div>
+                        <div>&lt;p&gt;##এইটা আরো একটা অধ্যায়&lt;/p&gt;</div>
+                      </div>
+                      <p className={`text-[10px] ${isDark ? "text-purple-400" : "text-purple-600"}`}>
+                        ## চিহ্নটা output এ দেখাবে না — শুধু heading হিসেবে কাজ করবে।
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -403,7 +443,7 @@ const UploadStep = () => {
                 onClick={handleModalAction}
                 className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-500/20 active:scale-95 transition-all text-sm"
               >
-                {showModal.type === "missing-points" ? "Continue Anyway" : "Start Splitting"}
+                {showModal.type === "missing-points" ? "Continue Anyway" : splitMode === "heading" ? "## দিয়ে Split করুন" : "Start Splitting"}
               </button>
             </div>
           </div>

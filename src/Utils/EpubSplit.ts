@@ -25,6 +25,7 @@ const BENGALI_NUM_WORDS = [
 ];
 
 const SPLIT_PATTERN = /<p[^>]*?>\s*([০-৯\d]+)\.\s*<\/p>/g;
+const HEADING_IDENTIFIER = "##";
 const TARGET_XHTML = "main.xhtml";
 
 const cleanQuotes = (html: string) => {
@@ -40,7 +41,7 @@ const cleanQuotes = (html: string) => {
 
 export const processAndSplitEpub = async (
   originalFile: File,
-  splitConfig: { isManual: boolean; count: number },
+  splitConfig: { isManual: boolean; count: number; mode?: "auto" | "manual" | "heading" },
 ): Promise<Blob> => {
   const zip = new JSZip();
   const content = await zip.loadAsync(await originalFile.arrayBuffer());
@@ -68,7 +69,35 @@ export const processAndSplitEpub = async (
   // isIntro: true হলে এই part টা Section0000, h2 নেই, TOC নেই
   const finalParts: { html: string; title: string; isIntro: boolean }[] = [];
 
-  if (splitConfig.isManual) {
+  if (splitConfig.mode === "heading") {
+    // ## দিয়ে শুরু হওয়া <p> গুলো heading — split point
+    const paragraphs = bodyContent.split(/(?=<p)/g);
+    let currentHtml = "";
+    let isFirst = true;
+    let currentTitle = "";
+
+    const flush = (title: string, html: string, intro: boolean) => {
+      if (!html.trim()) return;
+      finalParts.push({ html, title, isIntro: intro });
+    };
+
+    for (const p of paragraphs) {
+      // ## identifier detect
+      const headingMatch = p.match(/<p[^>]*?>\s*##([^<]+?)\s*<\/p>/i);
+      if (headingMatch) {
+        // আগের chunk flush করো
+        flush(currentTitle, currentHtml, isFirst && !currentTitle);
+        currentTitle = headingMatch[1].trim();
+        currentHtml = "";
+        isFirst = false;
+      } else {
+        currentHtml += p;
+      }
+    }
+    // শেষ chunk
+    flush(currentTitle, currentHtml, isFirst && !currentTitle);
+
+  } else if (splitConfig.isManual) {
     SPLIT_PATTERN.lastIndex = 0;
     const parts = bodyContent.split(SPLIT_PATTERN);
     let counter = 0;
