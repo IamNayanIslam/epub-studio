@@ -22,13 +22,13 @@ type ToastType = "success" | "error" | "warning";
 interface Toast { id: number; type: ToastType; message: string; }
 
 const ToastContainer = ({ toasts, remove }: { toasts: Toast[]; remove: (id: number) => void }) => (
-  <div className="fixed bottom-24 right-4 z-[200] flex flex-col gap-2 pointer-events-none">
+  <div className="fixed bottom-20 left-3 right-3 sm:left-auto sm:right-4 sm:bottom-24 z-[200] flex flex-col gap-2 pointer-events-none sm:max-w-xs sm:ml-auto">
     {toasts.map((t) => (
       <div
         key={t.id}
         className={`flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl border pointer-events-auto
-          backdrop-blur-md text-sm font-semibold max-w-xs
-          animate-in slide-in-from-right-4 fade-in duration-300
+          backdrop-blur-md text-sm font-semibold
+          animate-in slide-in-from-bottom-4 sm:slide-in-from-right-4 fade-in duration-300
           ${t.type === "success" ? "bg-emerald-900/90 border-emerald-700/50 text-emerald-100" :
             t.type === "error" ? "bg-red-900/90 border-red-700/50 text-red-100" :
             "bg-amber-900/90 border-amber-700/50 text-amber-100"}`}
@@ -37,7 +37,7 @@ const ToastContainer = ({ toasts, remove }: { toasts: Toast[]; remove: (id: numb
          t.type === "error" ? <XCircle size={16} className="shrink-0 text-red-400" /> :
          <AlertTriangle size={16} className="shrink-0 text-amber-400" />}
         <span className="flex-1">{t.message}</span>
-        <button onClick={() => remove(t.id)} className="opacity-60 hover:opacity-100 transition-opacity">
+        <button onClick={() => remove(t.id)} className="opacity-60 hover:opacity-100 transition-opacity shrink-0">
           <X size={13} />
         </button>
       </div>

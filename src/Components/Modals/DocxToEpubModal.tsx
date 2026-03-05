@@ -295,28 +295,30 @@ export const DocxToEpubModal = ({ isOpen, onClose, theme: t, isDark }: Props) =>
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={handleClose} />
 
-      <div className={`${t.card} border ${t.cardBorder} w-full max-w-lg rounded-[32px] shadow-2xl z-10 overflow-hidden flex flex-col max-h-[90vh]`}>
+      <div className={`${t.card} border ${t.cardBorder} w-full max-w-lg rounded-t-3xl sm:rounded-[28px] shadow-2xl z-10 overflow-hidden flex flex-col max-h-[92vh]`}>
 
         {/* Header */}
-        <div className="relative p-8 pb-5 shrink-0">
-          <button onClick={handleClose} className={`absolute right-6 top-6 p-2 rounded-full ${t.stepInactive} ${t.surfaceHover} ${t.textMuted} transition-all`}>
+        <div className="relative p-6 sm:p-8 pb-4 sm:pb-5 shrink-0">
+          {/* Mobile drag handle */}
+          <div className="w-10 h-1 rounded-full bg-slate-300 dark:bg-slate-600 mx-auto mb-4 sm:hidden" />
+          <button onClick={handleClose} className={`absolute right-5 top-5 sm:right-6 sm:top-6 p-2 rounded-full ${t.stepInactive} ${t.surfaceHover} ${t.textMuted} transition-all`}>
             <X size={18} />
           </button>
           <div className="flex flex-col items-center text-center">
-            <div className={`w-16 h-16 rounded-[22px] flex items-center justify-center mb-4 ${isDark ? "bg-purple-900/30" : "bg-purple-50"} text-purple-500`}>
-              <BookOpen size={30} />
+            <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-[20px] flex items-center justify-center mb-4 ${isDark ? "bg-purple-900/30" : "bg-purple-50"} text-purple-500`}>
+              <BookOpen size={28} />
             </div>
-            <h2 className={`text-2xl font-black tracking-tight ${t.textPrimary}`}>DOCX → EPUB</h2>
+            <h2 className={`text-xl sm:text-2xl font-black tracking-tight ${t.textPrimary}`}>DOCX → EPUB</h2>
             <p className={`text-xs font-bold mt-1 uppercase tracking-widest ${t.textMuted}`}>
               Word Document to EPUB Converter
             </p>
           </div>
         </div>
 
-        <div className="px-8 pb-8 space-y-4 overflow-y-auto flex-1">
+        <div className="px-5 sm:px-8 pb-6 sm:pb-8 space-y-4 overflow-y-auto flex-1">
 
           {/* Dropzone */}
           <div

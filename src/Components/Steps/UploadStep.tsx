@@ -281,58 +281,58 @@ const UploadStep = () => {
   const busy = isConverting || isProcessing;
 
   return (
-    <div className="flex flex-col items-center justify-center p-6 sm:p-10">
+    <div className="flex flex-col items-center justify-center py-4 sm:py-8 px-2 sm:px-6">
       <div
         {...getRootProps()}
-        className={`w-full max-w-xl p-10 sm:p-14 border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-300
+        className={`w-full max-w-sm sm:max-w-xl p-8 sm:p-14 border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-300
           ${isSuccess ? t.dropzoneSuccess : isDragActive ? t.dropzoneActive : t.dropzone}`}
       >
         <input {...getInputProps()} />
-        <div className="flex flex-col items-center gap-5 text-center">
+        <div className="flex flex-col items-center gap-4 text-center">
 
           {/* Icon */}
           {busy ? (
-            <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+            <Loader2 className="w-10 h-10 sm:w-12 sm:h-12 text-blue-500 animate-spin" />
           ) : isSuccess ? (
-            <CheckCircle2 className="w-12 h-12 text-green-500 animate-bounce" />
+            <CheckCircle2 className="w-10 h-10 sm:w-12 sm:h-12 text-emerald-500" />
           ) : (
-            <div className={`w-16 h-16 rounded-2xl ${isDark ? "bg-[#252836]" : "bg-gray-100"} flex items-center justify-center relative`}>
-              <Upload className={`w-7 h-7 ${t.textMuted}`} />
+            <div className={`w-14 h-14 rounded-2xl ${isDark ? "bg-[#1C1F30]" : "bg-slate-100"} flex items-center justify-center relative`}>
+              <Upload className={`w-6 h-6 ${t.textMuted}`} />
               <FileText className={`absolute -bottom-1.5 -right-1.5 w-5 h-5 ${isDark ? "text-purple-400" : "text-purple-500"}`} />
             </div>
           )}
 
           {/* Text */}
-          <div className={`text-base font-semibold ${isSuccess ? "text-green-500" : t.textSecondary}`}>
+          <div>
             {isConverting ? (
-              <span className={t.textMuted}>DOCX থেকে EPUB এ রূপান্তর হচ্ছে...</span>
+              <p className={`text-sm font-semibold ${t.textMuted}`}>DOCX → EPUB রূপান্তর হচ্ছে...</p>
             ) : isProcessing ? (
-              <span className={t.textMuted}>ফাইলটি বিশ্লেষণ করা হচ্ছে...</span>
+              <p className={`text-sm font-semibold ${t.textMuted}`}>বিশ্লেষণ করা হচ্ছে...</p>
             ) : isSuccess ? (
-              <div className="flex flex-col gap-2">
-                <span className="text-lg font-bold text-green-500">সফলভাবে প্রসেস হয়েছে!</span>
+              <div className="flex flex-col gap-2 items-center">
+                <span className={`text-base font-bold text-emerald-500`}>সফলভাবে প্রসেস হয়েছে!</span>
                 {isDocx && (
-                  <span className={`text-xs px-3 py-1 rounded-full font-bold inline-block mx-auto ${isDark ? "bg-purple-900/30 text-purple-400" : "bg-purple-100 text-purple-700"}`}>
+                  <span className={`text-[11px] px-3 py-1 rounded-full font-bold ${isDark ? "bg-purple-900/30 text-purple-400" : "bg-purple-100 text-purple-700"}`}>
                     DOCX → EPUB রূপান্তর সম্পন্ন
                   </span>
                 )}
-                <span className={`text-sm px-4 py-1 rounded-full font-bold inline-block mx-auto ${isDark ? "bg-green-900/30 text-green-400" : "bg-green-100 text-green-700"}`}>
-                  মোট {detectedSplits} টি স্প্লিট পয়েন্ট পাওয়া গেছে
+                <span className={`text-xs px-3 py-1 rounded-full font-bold ${isDark ? "bg-emerald-900/30 text-emerald-400" : "bg-emerald-100 text-emerald-700"}`}>
+                  {detectedSplits}টি স্প্লিট পয়েন্ট
                 </span>
               </div>
             ) : (
               <div className="space-y-1">
-                <p className={`font-bold ${t.textPrimary}`}>Drag & drop EPUB or DOCX file</p>
-                <p className={`text-sm ${t.textMuted}`}>or click to select</p>
+                <p className={`text-sm font-bold ${t.textPrimary}`}>
+                  <span className="sm:hidden">EPUB বা DOCX ফাইল চাপুন</span>
+                  <span className="hidden sm:inline">Drag & drop EPUB or DOCX</span>
+                </p>
+                <p className={`text-xs ${t.textMuted}`}>
+                  <span className="sm:hidden">বা এখানে চাপুন</span>
+                  <span className="hidden sm:inline">or click to select</span>
+                </p>
               </div>
             )}
           </div>
-
-          {isSuccess && (
-            <div className={`w-full ${isDark ? "bg-[#2A2D3E]" : "bg-gray-200"} h-1 rounded-full overflow-hidden mt-2`}>
-              <div className="bg-green-500 h-full w-full origin-left animate-[progress_3s_linear]" />
-            </div>
-          )}
         </div>
       </div>
 
@@ -350,81 +350,77 @@ const UploadStep = () => {
 
       {/* ── Modal ── */}
       {showModal && (
-        <div className={`fixed inset-0 ${t.overlay} backdrop-blur-sm flex items-center justify-center p-4 z-50`}>
-          <div className={`${t.modal} border ${t.cardBorder} p-7 rounded-2xl max-w-md w-full shadow-2xl`}>
-            <h3 className={`text-lg font-black flex items-center gap-2 mb-4 ${t.textPrimary} uppercase tracking-tight`}>
-              <FileWarning className="text-amber-500" size={20} />
+        <div className={`fixed inset-0 ${t.overlay} backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50`}>
+          <div className={`${t.modal} border ${t.cardBorder} p-5 sm:p-7 rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl`}>
+
+            <div className={`w-10 h-1 rounded-full mx-auto mb-5 sm:hidden ${isDark ? "bg-[#222538]" : "bg-slate-200"}`} />
+
+            <h3 className={`text-base font-black flex items-center gap-2 mb-4 ${t.textPrimary}`}>
+              <FileWarning className="text-amber-500 shrink-0" size={18} />
               {showModal.type === "missing-points" ? "Split Points Missing" : "No Split Points Found"}
             </h3>
 
-            <div className={`${t.textSecondary} mb-6 leading-relaxed text-sm`}>
+            <div className={`${t.textSecondary} mb-5 text-sm`}>
               {showModal.type === "missing-points" ? (
                 <div className="space-y-3">
-                  <p>বইটিতে নিচের পয়েন্টগুলো পাওয়া যায়নি:</p>
+                  <p>নিচের পয়েন্টগুলো পাওয়া যায়নি:</p>
                   <div className="flex flex-wrap gap-2">
                     {showModal.data.missingPoints?.map((p) => (
                       <span key={p} className={`${t.tagBg} px-2 py-1 rounded-md font-bold text-xs border`}>{p}</span>
                     ))}
                   </div>
-                  <p className={`text-xs ${t.textMuted}`}>আপনি কি এই অবস্থাতেই স্প্লিট করতে চান?</p>
+                  <p className={`text-xs ${t.textMuted}`}>এই অবস্থাতেই স্প্লিট করতে চান?</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  <p>
-                    কোনো নির্ধারিত স্প্লিট প্যাটার্ন পাওয়া যায়নি। মোট শব্দ:{" "}
-                    <span className={`font-bold ${t.textPrimary}`}>{showModal.data.wordCount}</span>
-                  </p>
+                <div className="space-y-3">
+                  <p>কোনো স্প্লিট প্যাটার্ন পাওয়া যায়নি। মোট শব্দ: <span className={`font-bold ${t.textPrimary}`}>{showModal.data.wordCount}</span></p>
 
-                  {/* Mode selector */}
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => setSplitMode("count")}
                       className={`py-2.5 rounded-xl font-bold text-xs border-2 transition-all ${
                         splitMode === "count"
                           ? "border-blue-600 bg-blue-600 text-white"
-                          : isDark ? "border-[#2A2D3E] bg-[#252836] text-gray-400" : "border-gray-200 bg-gray-50 text-gray-500"
+                          : isDark ? "border-[#222538] bg-[#1C1F30] text-slate-400" : "border-slate-200 bg-slate-50 text-slate-500"
                       }`}
                     >
-                      Word Count দিয়ে
+                      Word Count
                     </button>
                     <button
                       onClick={() => setSplitMode("heading")}
                       className={`py-2.5 rounded-xl font-bold text-xs border-2 transition-all ${
                         splitMode === "heading"
                           ? "border-purple-600 bg-purple-600 text-white"
-                          : isDark ? "border-[#2A2D3E] bg-[#252836] text-gray-400" : "border-gray-200 bg-gray-50 text-gray-500"
+                          : isDark ? "border-[#222538] bg-[#1C1F30] text-slate-400" : "border-slate-200 bg-slate-50 text-slate-500"
                       }`}
                     >
-                      ## Heading দিয়ে
+                      ## Heading
                     </button>
                   </div>
 
                   {splitMode === "count" ? (
-                    <div className={`${isDark ? "bg-blue-900/20 border-blue-800" : "bg-blue-50 border-blue-100"} p-4 rounded-xl border`}>
-                      <label className="block text-xs font-bold text-blue-500 mb-2 uppercase tracking-widest">
-                        How many splits?
-                      </label>
+                    <div className={`${isDark ? "bg-blue-900/20 border-blue-800/40" : "bg-blue-50 border-blue-100"} p-4 rounded-xl border`}>
+                      <label className="block text-[10px] font-black text-blue-500 mb-2 uppercase tracking-widest">কতটি ভাগ?</label>
                       <input
                         type="number"
                         value={customSplitCount}
                         onChange={(e) => setCustomSplitCount(parseInt(e.target.value) || 1)}
-                        className={`w-full border-2 rounded-lg px-3 py-2 font-bold outline-none transition-all text-sm ${isDark ? "bg-[#252836] border-blue-800 text-gray-100 focus:border-blue-500" : "bg-white border-blue-200 text-blue-800 focus:border-blue-500"}`}
+                        className={`w-full border-2 rounded-xl px-3 py-2.5 font-bold outline-none text-sm ${isDark ? "bg-[#1C1F30] border-blue-800/50 text-slate-100 focus:border-blue-500" : "bg-white border-blue-200 text-blue-800 focus:border-blue-500"}`}
                       />
                       <p className="text-[10px] text-blue-400 mt-2 italic">
-                        *১৫০০ শব্দে ১টি হিসেবে {Math.ceil(showModal.data.wordCount / 1500)}টি সাজেস্ট করছি।
+                        ~১৫০০ শব্দ/ভাগ হিসেবে {Math.ceil(showModal.data.wordCount / 1500)}টি সাজেস্ট
                       </p>
                     </div>
                   ) : (
-                    <div className={`${isDark ? "bg-purple-900/20 border-purple-800" : "bg-purple-50 border-purple-100"} p-4 rounded-xl border space-y-2`}>
+                    <div className={`${isDark ? "bg-purple-900/20 border-purple-800/40" : "bg-purple-50 border-purple-100"} p-4 rounded-xl border space-y-2`}>
                       <p className={`text-xs font-bold ${isDark ? "text-purple-400" : "text-purple-700"}`}>
-                        EPUB এর xhtml ফাইলে অধ্যায়ের নামের আগে <code className="bg-black/20 px-1 rounded">##</code> যোগ করুন:
+                        xhtml ফাইলে অধ্যায়ের আগে <code className="bg-black/20 px-1 rounded">##</code> যোগ করুন
                       </p>
                       <div className={`text-xs font-mono p-2 rounded-lg ${isDark ? "bg-black/30 text-purple-300" : "bg-white text-purple-800"}`}>
-                        <div>&lt;p&gt;##এইটা একটা অধ্যায়&lt;/p&gt;</div>
-                        <div>&lt;p&gt;##এইটা আরো একটা অধ্যায়&lt;/p&gt;</div>
+                        <div>&lt;p&gt;##অধ্যায়ের নাম&lt;/p&gt;</div>
                       </div>
                       <p className={`text-[10px] ${isDark ? "text-purple-400" : "text-purple-600"}`}>
-                        ## চিহ্নটা output এ দেখাবে না — শুধু heading হিসেবে কাজ করবে।
+                        ## output এ থাকবে না
                       </p>
                     </div>
                   )}
@@ -435,15 +431,15 @@ const UploadStep = () => {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowModal(null)}
-                className={`flex-1 py-2.5 rounded-xl font-bold ${t.textMuted} ${t.surfaceHover} transition-all text-sm`}
+                className={`flex-1 py-3 rounded-xl font-bold text-sm ${t.textMuted} ${t.surfaceHover} transition-all`}
               >
-                Cancel
+                বাতিল
               </button>
               <button
                 onClick={handleModalAction}
-                className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-500/20 active:scale-95 transition-all text-sm"
+                className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-500/20 active:scale-95 transition-all text-sm"
               >
-                {showModal.type === "missing-points" ? "Continue Anyway" : splitMode === "heading" ? "## দিয়ে Split করুন" : "Start Splitting"}
+                {showModal.type === "missing-points" ? "Continue Anyway" : splitMode === "heading" ? "## দিয়ে Split" : "Split করুন"}
               </button>
             </div>
           </div>

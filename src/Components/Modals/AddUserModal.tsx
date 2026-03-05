@@ -70,16 +70,18 @@ export const AddUserModal = ({ isOpen, onClose, theme: t, currentUserRole }: Pro
   const isAdmin = formData.role === "admin";
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={onClose} />
 
-      <div className={`${t.card} border ${t.cardBorder} w-full max-w-[480px] rounded-[32px] shadow-2xl z-10 overflow-hidden`}>
+      <div className={`${t.card} border ${t.cardBorder} w-full max-w-[480px] rounded-t-3xl sm:rounded-[28px] shadow-2xl z-10 overflow-hidden`}>
 
         {/* Header */}
-        <div className="relative p-8 pb-4">
+        <div className="relative p-6 sm:p-8 pb-4">
+          {/* Mobile drag handle */}
+          <div className="w-10 h-1 rounded-full bg-slate-300 dark:bg-slate-600 mx-auto mb-5 sm:hidden" />
           <button
             onClick={onClose}
-            className={`absolute right-6 top-6 p-2 rounded-full ${t.stepInactive} ${t.surfaceHover} ${t.textMuted} transition-all`}
+            className={`absolute right-5 top-5 sm:right-6 sm:top-6 p-2 rounded-full ${t.stepInactive} ${t.surfaceHover} ${t.textMuted} transition-all`}
           >
             <X size={18} />
           </button>
@@ -98,7 +100,7 @@ export const AddUserModal = ({ isOpen, onClose, theme: t, currentUserRole }: Pro
         </div>
 
         {/* Form */}
-        <form onSubmit={handleAddUser} className="p-8 pt-4 space-y-5">
+        <form onSubmit={handleAddUser} className="px-5 sm:px-8 pb-6 sm:pb-8 pt-2 space-y-4">
 
           {/* Full Name */}
           <div className="space-y-1.5">
