@@ -9,8 +9,8 @@ const BENGALI_NUM_WORDS = [
   "একুশ", "বাইশ", "তেইশ", "চব্বিশ", "পঁচিশ",
   "ছাব্বিশ", "সাতাশ", "আটাশ", "ঊনত্রিশ", "ত্রিশ",
   "একত্রিশ", "বত্রিশ", "তেত্রিশ", "চৌত্রিশ", "পঁয়ত্রিশ",
-  "ছত্রিশ", "সাঁইত্রিশ", "আটত্রিশ", "ঊনচল্লিশ", "চল্লিশ",
-  "একচল্লিশ", "বিয়াল্লিশ", "তেতাল্লিশ", "চুয়াল্লিশ", "পঁয়তাল্লিশ",
+  "ছত্রিশ", "সাতত্রিশ", "আটত্রিশ", "ঊনচল্লিশ", "চল্লিশ",
+  "একচল্লিশ", "বিয়াল্লিশ", "তেতাল্লিশ", "চৌচল্লিশ", "পঁয়তাল্লিশ",
   "ছেচল্লিশ", "সাতচল্লিশ", "আটচল্লিশ", "ঊনপঞ্চাশ", "পঞ্চাশ",
   "একান্ন", "বায়ান্ন", "তিপান্ন", "চুয়ান্ন", "পঞ্চান্ন",
   "ছাপান্ন", "সাতান্ন", "আটান্ন", "ঊনষাট", "ষাট",
@@ -24,7 +24,6 @@ const BENGALI_NUM_WORDS = [
   "ছিয়ানব্বই", "সাতানব্বই", "আটানব্বই", "নিরানব্বই", "একশ",
 ];
 
-const SPLIT_PATTERN = /<p[^>]*?>\s*([০-৯\d]+)\.\s*<\/p>/g;
 const TARGET_XHTML = "main.xhtml";
 
 const cleanQuotes = (html: string) => {
@@ -97,23 +96,55 @@ export const processAndSplitEpub = async (
     flush(currentTitle, currentHtml, isFirst && !currentTitle);
 
   } else if (splitConfig.isManual) {
-    SPLIT_PATTERN.lastIndex = 0;
-    const parts = bodyContent.split(SPLIT_PATTERN);
+    // ১. ২. ৩. এবং ## দুটো pattern একসাথে handle করা
+    const paragraphs = bodyContent.split(/(?=<p)/g);
+    let currentHtml = "";
     let counter = 0;
-    parts.forEach((p) => {
-      if (/^\s*[০-৯\d]+\s*$/.test(p)) {
-        counter++;
-        return;
-      }
-      if (!p.trim()) return;
-      finalParts.push({
-        html: p,
-        title: counter === 0
+    let isFirstChunk = true;
+    let pendingTitle = ""; // ## heading এর জন্য
+
+    const flushPart = (title: string, html: string, intro: boolean) => {
+      if (!html.trim()) return;
+      finalParts.push({ html, title, isIntro: intro });
+    };
+
+    for (const p of paragraphs) {
+      // Pattern 1: ১. ২. ৩. numeric split point  <p>১.</p>
+      const numericMatch = p.match(/^<p[^>]*?>\s*[০-৯\d]+\.\s*<\/p>/i);
+      // Pattern 2: ## custom heading  <p>##পরিশিষ্ট</p>
+      const headingMatch = p.match(/<p[^>]*?>\s*##([^<]+?)\s*<\/p>/i);
+
+      if (numericMatch) {
+        // আগের chunk flush
+        const title = isFirstChunk && counter === 0
           ? ""
-          : `পর্ব-${BENGALI_NUM_WORDS[counter] || counter}`,
-        isIntro: counter === 0,
-      });
-    });
+          : pendingTitle || `পর্ব-${BENGALI_NUM_WORDS[counter] || counter}`;
+        flushPart(title, currentHtml, isFirstChunk && counter === 0);
+        counter++;
+        currentHtml = "";
+        pendingTitle = ""; // numeric split এ auto title, pending clear
+        isFirstChunk = false;
+      } else if (headingMatch) {
+        // আগের chunk flush
+        const title = isFirstChunk && counter === 0
+          ? ""
+          : pendingTitle || `পর্ব-${BENGALI_NUM_WORDS[counter] || counter}`;
+        flushPart(title, currentHtml, isFirstChunk && counter === 0);
+        counter++;
+        currentHtml = "";
+        pendingTitle = headingMatch[1].trim(); // ## এর text পরের chunk এর title হবে
+        isFirstChunk = false;
+      } else {
+        currentHtml += p;
+      }
+    }
+
+    // শেষ chunk flush
+    const lastTitle = isFirstChunk && counter === 0
+      ? ""
+      : pendingTitle || `পর্ব-${BENGALI_NUM_WORDS[counter] || counter}`;
+    flushPart(lastTitle, currentHtml, isFirstChunk && counter === 0);
+
   } else {
     const totalWords = bodyContent.replace(/<[^>]*>/g, "").split(/\s+/).length;
     const wordsPerFile = Math.floor(totalWords / splitConfig.count);
