@@ -1,6 +1,12 @@
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { Upload, FileWarning, Loader2, CheckCircle2, FileText } from "lucide-react";
+import {
+  Upload,
+  FileWarning,
+  Loader2,
+  CheckCircle2,
+  FileText,
+} from "lucide-react";
 import { processEpubFile } from "../../Utils/EpubProcessor";
 import { processAndSplitEpub } from "../../Utils/EpubSplit";
 import { useEpub } from "../../Store/EpubContext";
@@ -27,7 +33,8 @@ function splitIntoChapters(html: string) {
     const div = document.createElement("div");
     currentNodes.forEach((n) => div.appendChild(n.cloneNode(true)));
     const content = div.innerHTML.trim();
-    if (content) chapters.push({ title: currentTitle, content, index: chapters.length });
+    if (content)
+      chapters.push({ title: currentTitle, content, index: chapters.length });
     currentNodes = [];
   };
 
@@ -43,7 +50,8 @@ function splitIntoChapters(html: string) {
   }
   flush();
 
-  if (chapters.length === 0) chapters.push({ title: "Content", content: body.innerHTML, index: 0 });
+  if (chapters.length === 0)
+    chapters.push({ title: "Content", content: body.innerHTML, index: 0 });
   return chapters;
 }
 
@@ -92,25 +100,38 @@ async function convertDocxToEpubFile(docxFile: File): Promise<File> {
 
   zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
 
-  zip.file("META-INF/container.xml", `<?xml version="1.0" encoding="UTF-8"?>
+  zip.file(
+    "META-INF/container.xml",
+    `<?xml version="1.0" encoding="UTF-8"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
   <rootfiles>
     <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
   </rootfiles>
-</container>`);
+</container>`,
+  );
 
   const fname = (c: { index: number }) =>
-    chapters.length === 1 ? "main.xhtml" : `main${String(c.index).padStart(4, "0")}.xhtml`;
+    chapters.length === 1
+      ? "main.xhtml"
+      : `main${String(c.index).padStart(4, "0")}.xhtml`;
 
-  const manifestItems = chapters.map((c) =>
-    `    <item id="section${String(c.index).padStart(4, "0")}" href="Text/${fname(c)}" media-type="application/xhtml+xml"/>`
-  ).join("\n");
+  const manifestItems = chapters
+    .map(
+      (c) =>
+        `    <item id="section${String(c.index).padStart(4, "0")}" href="Text/${fname(c)}" media-type="application/xhtml+xml"/>`,
+    )
+    .join("\n");
 
-  const spineItems = chapters.map((c) =>
-    `    <itemref idref="section${String(c.index).padStart(4, "0")}"/>`
-  ).join("\n");
+  const spineItems = chapters
+    .map(
+      (c) =>
+        `    <itemref idref="section${String(c.index).padStart(4, "0")}"/>`,
+    )
+    .join("\n");
 
-  zip.file("OEBPS/content.opf", `<?xml version="1.0" encoding="UTF-8"?>
+  zip.file(
+    "OEBPS/content.opf",
+    `<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookId" version="2.0">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
     <dc:title>${bookTitle}</dc:title>
@@ -125,16 +146,22 @@ ${manifestItems}
   <spine toc="ncx">
 ${spineItems}
   </spine>
-</package>`);
+</package>`,
+  );
 
-  const navPoints = chapters.map((c, i) =>
-    `  <navPoint id="navPoint-${i + 1}" playOrder="${i + 1}">
+  const navPoints = chapters
+    .map(
+      (c, i) =>
+        `  <navPoint id="navPoint-${i + 1}" playOrder="${i + 1}">
     <navLabel><text>${c.title}</text></navLabel>
     <content src="Text/${fname(c)}"/>
-  </navPoint>`
-  ).join("\n");
+  </navPoint>`,
+    )
+    .join("\n");
 
-  zip.file("OEBPS/toc.ncx", `<?xml version="1.0" encoding="UTF-8"?>
+  zip.file(
+    "OEBPS/toc.ncx",
+    `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN"
   "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd">
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
@@ -148,10 +175,14 @@ ${spineItems}
   <navMap>
 ${navPoints}
   </navMap>
-</ncx>`);
+</ncx>`,
+  );
 
   for (const chapter of chapters) {
-    zip.file(`OEBPS/Text/${fname(chapter)}`, makeSectionXhtml(bookTitle, chapter.content));
+    zip.file(
+      `OEBPS/Text/${fname(chapter)}`,
+      makeSectionXhtml(bookTitle, chapter.content),
+    );
   }
 
   const blob = await zip.generateAsync({
@@ -186,91 +217,135 @@ const UploadStep = () => {
 
   const runSplitAndDispatch = async (
     file: File,
-    splitConfig: { isManual: boolean; count: number; mode?: "auto" | "manual" | "heading" },
+    splitConfig: {
+      isManual: boolean;
+      count: number;
+      mode?: "auto" | "manual" | "heading";
+    },
   ) => {
     const blob = await processAndSplitEpub(file, splitConfig);
     dispatch({ type: "SET_PROCESSED_BLOB", payload: blob });
   };
 
-  const processEpub = useCallback(async (file: File) => {
-    setIsProcessing(true);
-    setIsSuccess(false);
-    setDetectedSplits(null);
-    setUploadedFile(file);
-
-    try {
-      const result = await processEpubFile(file);
-      setIsProcessing(false);
-
-      if (result.status === "success") {
-        const totalSplits: number = result.data.totalSplits ?? 0;
-        setIsSuccess(true);
-        setDetectedSplits(totalSplits);
-        dispatch({ type: "SET_FILE", payload: { file, wordCount: result.data.wordCount, missing: [] } });
-        dispatch({ type: "UPDATE_SPLIT_CONFIG", payload: { isManual: true, splitCount: totalSplits } });
-        await runSplitAndDispatch(file, { isManual: true, count: totalSplits });
-      } else if (result.status === "error") {
-        const errorType = result.errorType as "missing-points" | "no-points";
-        const suggestion = Math.ceil(result.data.wordCount / 1500);
-        setCustomSplitCount(suggestion);
-        setShowModal({ type: errorType, data: result.data });
-        dispatch({ type: "SET_FILE", payload: { file, wordCount: result.data.wordCount, missing: result.data.missingPoints || [] } });
-      }
-    } catch (err) {
-      setIsProcessing(false);
-      console.error("Processing Error:", err);
-      alert("ফাইলটি প্রসেস করা যাচ্ছে না। সঠিক ফাইল দিন।");
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch]);
-
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
-    if (!file) return;
-
-    const isDocxFile = file.name.toLowerCase().endsWith(".docx");
-    setIsDocx(isDocxFile);
-
-    if (isDocxFile) {
-      setIsConverting(true);
+  const processEpub = useCallback(
+    async (file: File) => {
+      setIsProcessing(true);
       setIsSuccess(false);
+      setDetectedSplits(null);
+      setUploadedFile(file);
+
       try {
-        const epubFile = await convertDocxToEpubFile(file);
-        setIsConverting(false);
-        await processEpub(epubFile);
+        const result = await processEpubFile(file);
+        setIsProcessing(false);
+
+        if (result.status === "success") {
+          const totalSplits: number = result.data.totalSplits ?? 0;
+          setIsSuccess(true);
+          setDetectedSplits(totalSplits);
+          dispatch({
+            type: "SET_FILE",
+            payload: { file, wordCount: result.data.wordCount, missing: [] },
+          });
+          dispatch({
+            type: "UPDATE_SPLIT_CONFIG",
+            payload: { isManual: true, splitCount: totalSplits },
+          });
+          await runSplitAndDispatch(file, {
+            isManual: true,
+            count: totalSplits,
+          });
+        } else if (result.status === "error") {
+          const errorType = result.errorType as "missing-points" | "no-points";
+          const suggestion = Math.ceil(result.data.wordCount / 1500);
+          setCustomSplitCount(suggestion);
+          setShowModal({ type: errorType, data: result.data });
+          dispatch({
+            type: "SET_FILE",
+            payload: {
+              file,
+              wordCount: result.data.wordCount,
+              missing: result.data.missingPoints || [],
+            },
+          });
+        }
       } catch (err) {
-        setIsConverting(false);
-        console.error("DOCX conversion failed:", err);
-        alert("DOCX ফাইলটি convert করা যাচ্ছে না।");
+        setIsProcessing(false);
+        console.error("Processing Error:", err);
+        alert("ফাইলটি প্রসেস করা যাচ্ছে না। সঠিক ফাইল দিন।");
       }
-    } else {
-      await processEpub(file);
-    }
-  }, [processEpub]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [dispatch],
+  );
+
+  const onDrop = useCallback(
+    async (acceptedFiles: File[]) => {
+      const file = acceptedFiles[0];
+      if (!file) return;
+
+      const isDocxFile = file.name.toLowerCase().endsWith(".docx");
+      setIsDocx(isDocxFile);
+
+      if (isDocxFile) {
+        setIsConverting(true);
+        setIsSuccess(false);
+        try {
+          const epubFile = await convertDocxToEpubFile(file);
+          setIsConverting(false);
+          await processEpub(epubFile);
+        } catch (err) {
+          setIsConverting(false);
+          console.error("DOCX conversion failed:", err);
+          alert("Converting DOCX to EPUB");
+        }
+      } else {
+        await processEpub(file);
+      }
+    },
+    [processEpub],
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
       "application/epub+zip": [".epub"],
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        [".docx"],
     },
     multiple: false,
   });
 
   const handleModalAction = async () => {
     if (!showModal || !uploadedFile) return;
-    let splitConfig: { isManual: boolean; count: number; mode?: "auto" | "manual" | "heading" };
+    let splitConfig: {
+      isManual: boolean;
+      count: number;
+      mode?: "auto" | "manual" | "heading";
+    };
 
     if (showModal.type === "no-points" && splitMode === "heading") {
       splitConfig = { isManual: false, count: 0, mode: "heading" };
-      dispatch({ type: "UPDATE_SPLIT_CONFIG", payload: { isManual: false, splitCount: 0 } });
+      dispatch({
+        type: "UPDATE_SPLIT_CONFIG",
+        payload: { isManual: false, splitCount: 0 },
+      });
     } else if (showModal.type === "no-points") {
-      splitConfig = { isManual: false, count: customSplitCount, mode: "manual" };
-      dispatch({ type: "UPDATE_SPLIT_CONFIG", payload: { isManual: false, splitCount: customSplitCount } });
+      splitConfig = {
+        isManual: false,
+        count: customSplitCount,
+        mode: "manual",
+      };
+      dispatch({
+        type: "UPDATE_SPLIT_CONFIG",
+        payload: { isManual: false, splitCount: customSplitCount },
+      });
     } else {
       const totalSplits: number = showModal.data.totalSplits ?? 0;
       splitConfig = { isManual: true, count: totalSplits, mode: "auto" };
-      dispatch({ type: "UPDATE_SPLIT_CONFIG", payload: { isManual: true, splitCount: totalSplits } });
+      dispatch({
+        type: "UPDATE_SPLIT_CONFIG",
+        payload: { isManual: true, splitCount: totalSplits },
+      });
     }
 
     await runSplitAndDispatch(uploadedFile, splitConfig);
@@ -289,46 +364,63 @@ const UploadStep = () => {
       >
         <input {...getInputProps()} />
         <div className="flex flex-col items-center gap-4 text-center">
-
           {/* Icon */}
           {busy ? (
             <Loader2 className="w-10 h-10 sm:w-12 sm:h-12 text-blue-500 animate-spin" />
           ) : isSuccess ? (
             <CheckCircle2 className="w-10 h-10 sm:w-12 sm:h-12 text-emerald-500" />
           ) : (
-            <div className={`w-14 h-14 rounded-2xl ${isDark ? "bg-[#1C1F30]" : "bg-slate-100"} flex items-center justify-center relative`}>
+            <div
+              className={`w-14 h-14 rounded-2xl ${isDark ? "bg-[#1C1F30]" : "bg-slate-100"} flex items-center justify-center relative`}
+            >
               <Upload className={`w-6 h-6 ${t.textMuted}`} />
-              <FileText className={`absolute -bottom-1.5 -right-1.5 w-5 h-5 ${isDark ? "text-purple-400" : "text-purple-500"}`} />
+              <FileText
+                className={`absolute -bottom-1.5 -right-1.5 w-5 h-5 ${isDark ? "text-purple-400" : "text-purple-500"}`}
+              />
             </div>
           )}
 
           {/* Text */}
           <div>
             {isConverting ? (
-              <p className={`text-sm font-semibold ${t.textMuted}`}>DOCX → EPUB রূপান্তর হচ্ছে...</p>
+              <p className={`text-sm font-semibold ${t.textMuted}`}>
+                DOCX → EPUB কনভার্ট হচ্ছে...
+              </p>
             ) : isProcessing ? (
-              <p className={`text-sm font-semibold ${t.textMuted}`}>বিশ্লেষণ করা হচ্ছে...</p>
+              <p className={`text-sm font-semibold ${t.textMuted}`}>
+                বিশ্লেষণ করা হচ্ছে...
+              </p>
             ) : isSuccess ? (
               <div className="flex flex-col gap-2 items-center">
-                <span className={`text-base font-bold text-emerald-500`}>সফলভাবে প্রসেস হয়েছে!</span>
+                <span className={`text-base font-bold text-emerald-500`}>
+                  সফলভাবে প্রসেস হয়েছে!
+                </span>
                 {isDocx && (
-                  <span className={`text-[11px] px-3 py-1 rounded-full font-bold ${isDark ? "bg-purple-900/30 text-purple-400" : "bg-purple-100 text-purple-700"}`}>
-                    DOCX → EPUB রূপান্তর সম্পন্ন
+                  <span
+                    className={`text-[11px] px-3 py-1 rounded-full font-bold ${isDark ? "bg-purple-900/30 text-purple-400" : "bg-purple-100 text-purple-700"}`}
+                  >
+                    DOCX → EPUB কনভার্ট সম্পন্ন হয়েছে
                   </span>
                 )}
-                <span className={`text-xs px-3 py-1 rounded-full font-bold ${isDark ? "bg-emerald-900/30 text-emerald-400" : "bg-emerald-100 text-emerald-700"}`}>
+                <span
+                  className={`text-xs px-3 py-1 rounded-full font-bold ${isDark ? "bg-emerald-900/30 text-emerald-400" : "bg-emerald-100 text-emerald-700"}`}
+                >
                   {detectedSplits}টি স্প্লিট পয়েন্ট
                 </span>
               </div>
             ) : (
               <div className="space-y-1">
                 <p className={`text-sm font-bold ${t.textPrimary}`}>
-                  <span className="sm:hidden">EPUB বা DOCX ফাইল চাপুন</span>
-                  <span className="hidden sm:inline">Drag & drop EPUB or DOCX</span>
+                  <span className="sm:hidden">Drag & drop EPUB or DOCX</span>
+                  <span className="hidden sm:inline">
+                    Drag & drop EPUB or DOCX
+                  </span>
                 </p>
                 <p className={`text-xs ${t.textMuted}`}>
-                  <span className="sm:hidden">বা এখানে চাপুন</span>
-                  <span className="hidden sm:inline">or click to select</span>
+                  <span className="sm:hidden">or click here to select</span>
+                  <span className="hidden sm:inline">
+                    or click here to select
+                  </span>
                 </p>
               </div>
             )}
@@ -339,10 +431,14 @@ const UploadStep = () => {
       {/* Format badges */}
       {!busy && !isSuccess && (
         <div className="flex gap-2 mt-4">
-          <span className={`text-[10px] font-bold px-3 py-1 rounded-full border ${isDark ? "border-blue-800/50 text-blue-400 bg-blue-900/20" : "border-blue-200 text-blue-600 bg-blue-50"}`}>
+          <span
+            className={`text-[10px] font-bold px-3 py-1 rounded-full border ${isDark ? "border-blue-800/50 text-blue-400 bg-blue-900/20" : "border-blue-200 text-blue-600 bg-blue-50"}`}
+          >
             .epub
           </span>
-          <span className={`text-[10px] font-bold px-3 py-1 rounded-full border ${isDark ? "border-purple-800/50 text-purple-400 bg-purple-900/20" : "border-purple-200 text-purple-600 bg-purple-50"}`}>
+          <span
+            className={`text-[10px] font-bold px-3 py-1 rounded-full border ${isDark ? "border-purple-800/50 text-purple-400 bg-purple-900/20" : "border-purple-200 text-purple-600 bg-purple-50"}`}
+          >
             .docx → epub
           </span>
         </div>
@@ -350,30 +446,51 @@ const UploadStep = () => {
 
       {/* ── Modal ── */}
       {showModal && (
-        <div className={`fixed inset-0 ${t.overlay} backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50`}>
-          <div className={`${t.modal} border ${t.cardBorder} p-5 sm:p-7 rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl`}>
+        <div
+          className={`fixed inset-0 ${t.overlay} backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50`}
+        >
+          <div
+            className={`${t.modal} border ${t.cardBorder} p-5 sm:p-7 rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl`}
+          >
+            <div
+              className={`w-10 h-1 rounded-full mx-auto mb-5 sm:hidden ${isDark ? "bg-[#222538]" : "bg-slate-200"}`}
+            />
 
-            <div className={`w-10 h-1 rounded-full mx-auto mb-5 sm:hidden ${isDark ? "bg-[#222538]" : "bg-slate-200"}`} />
-
-            <h3 className={`text-base font-black flex items-center gap-2 mb-4 ${t.textPrimary}`}>
+            <h3
+              className={`text-base font-black flex items-center gap-2 mb-4 ${t.textPrimary}`}
+            >
               <FileWarning className="text-amber-500 shrink-0" size={18} />
-              {showModal.type === "missing-points" ? "Split Points Missing" : "No Split Points Found"}
+              {showModal.type === "missing-points"
+                ? "Split Points Missing"
+                : "No Split Points Found"}
             </h3>
 
             <div className={`${t.textSecondary} mb-5 text-sm`}>
               {showModal.type === "missing-points" ? (
                 <div className="space-y-3">
-                  <p>নিচের পয়েন্টগুলো পাওয়া যায়নি:</p>
+                  <p>নিচের স্প্লিট পয়েন্টগুলো পাওয়া যায়নি:</p>
                   <div className="flex flex-wrap gap-2">
                     {showModal.data.missingPoints?.map((p) => (
-                      <span key={p} className={`${t.tagBg} px-2 py-1 rounded-md font-bold text-xs border`}>{p}</span>
+                      <span
+                        key={p}
+                        className={`${t.tagBg} px-2 py-1 rounded-md font-bold text-xs border`}
+                      >
+                        {p}
+                      </span>
                     ))}
                   </div>
-                  <p className={`text-xs ${t.textMuted}`}>এই অবস্থাতেই স্প্লিট করতে চান?</p>
+                  <p className={`text-xs ${t.textMuted}`}>
+                    এই অবস্থাতেই স্প্লিট করতে চান?
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <p>কোনো স্প্লিট প্যাটার্ন পাওয়া যায়নি। মোট শব্দ: <span className={`font-bold ${t.textPrimary}`}>{showModal.data.wordCount}</span></p>
+                  <p>
+                    কোনো স্প্লিট প্যাটার্ন পাওয়া যায়নি। মোট শব্দ:
+                    <span className={`font-bold ${t.textPrimary}`}>
+                      {showModal.data.wordCount}
+                    </span>
+                  </p>
 
                   <div className="grid grid-cols-2 gap-2">
                     <button
@@ -381,7 +498,9 @@ const UploadStep = () => {
                       className={`py-2.5 rounded-xl font-bold text-xs border-2 transition-all ${
                         splitMode === "count"
                           ? "border-blue-600 bg-blue-600 text-white"
-                          : isDark ? "border-[#222538] bg-[#1C1F30] text-slate-400" : "border-slate-200 bg-slate-50 text-slate-500"
+                          : isDark
+                            ? "border-[#222538] bg-[#1C1F30] text-slate-400"
+                            : "border-slate-200 bg-slate-50 text-slate-500"
                       }`}
                     >
                       Word Count
@@ -391,7 +510,9 @@ const UploadStep = () => {
                       className={`py-2.5 rounded-xl font-bold text-xs border-2 transition-all ${
                         splitMode === "heading"
                           ? "border-purple-600 bg-purple-600 text-white"
-                          : isDark ? "border-[#222538] bg-[#1C1F30] text-slate-400" : "border-slate-200 bg-slate-50 text-slate-500"
+                          : isDark
+                            ? "border-[#222538] bg-[#1C1F30] text-slate-400"
+                            : "border-slate-200 bg-slate-50 text-slate-500"
                       }`}
                     >
                       ## Heading
@@ -399,27 +520,44 @@ const UploadStep = () => {
                   </div>
 
                   {splitMode === "count" ? (
-                    <div className={`${isDark ? "bg-blue-900/20 border-blue-800/40" : "bg-blue-50 border-blue-100"} p-4 rounded-xl border`}>
-                      <label className="block text-[10px] font-black text-blue-500 mb-2 uppercase tracking-widest">কতটি ভাগ?</label>
+                    <div
+                      className={`${isDark ? "bg-blue-900/20 border-blue-800/40" : "bg-blue-50 border-blue-100"} p-4 rounded-xl border`}
+                    >
+                      <label className="block text-[10px] font-black text-blue-500 mb-2 uppercase tracking-widest">
+                        কতটি স্প্লিট?
+                      </label>
                       <input
                         type="number"
                         value={customSplitCount}
-                        onChange={(e) => setCustomSplitCount(parseInt(e.target.value) || 1)}
+                        onChange={(e) =>
+                          setCustomSplitCount(parseInt(e.target.value) || 1)
+                        }
                         className={`w-full border-2 rounded-xl px-3 py-2.5 font-bold outline-none text-sm ${isDark ? "bg-[#1C1F30] border-blue-800/50 text-slate-100 focus:border-blue-500" : "bg-white border-blue-200 text-blue-800 focus:border-blue-500"}`}
                       />
                       <p className="text-[10px] text-blue-400 mt-2 italic">
-                        ~১৫০০ শব্দ/ভাগ হিসেবে {Math.ceil(showModal.data.wordCount / 1500)}টি সাজেস্ট
+                        ~১৫০০ শব্দ/স্প্লিট হিসেবে
+                        {Math.ceil(showModal.data.wordCount / 1500)}টি সাজেস্ট
                       </p>
                     </div>
                   ) : (
-                    <div className={`${isDark ? "bg-purple-900/20 border-purple-800/40" : "bg-purple-50 border-purple-100"} p-4 rounded-xl border space-y-2`}>
-                      <p className={`text-xs font-bold ${isDark ? "text-purple-400" : "text-purple-700"}`}>
-                        xhtml ফাইলে অধ্যায়ের আগে <code className="bg-black/20 px-1 rounded">##</code> যোগ করুন
+                    <div
+                      className={`${isDark ? "bg-purple-900/20 border-purple-800/40" : "bg-purple-50 border-purple-100"} p-4 rounded-xl border space-y-2`}
+                    >
+                      <p
+                        className={`text-xs font-bold ${isDark ? "text-purple-400" : "text-purple-700"}`}
+                      >
+                        xhtml ফাইলে অধ্যায়ের আগে
+                        <code className="bg-black/20 px-1 rounded">##</code> যোগ
+                        করুন
                       </p>
-                      <div className={`text-xs font-mono p-2 rounded-lg ${isDark ? "bg-black/30 text-purple-300" : "bg-white text-purple-800"}`}>
+                      <div
+                        className={`text-xs font-mono p-2 rounded-lg ${isDark ? "bg-black/30 text-purple-300" : "bg-white text-purple-800"}`}
+                      >
                         <div>&lt;p&gt;##অধ্যায়ের নাম&lt;/p&gt;</div>
                       </div>
-                      <p className={`text-[10px] ${isDark ? "text-purple-400" : "text-purple-600"}`}>
+                      <p
+                        className={`text-[10px] ${isDark ? "text-purple-400" : "text-purple-600"}`}
+                      >
                         ## output এ থাকবে না
                       </p>
                     </div>
@@ -439,7 +577,11 @@ const UploadStep = () => {
                 onClick={handleModalAction}
                 className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-500/20 active:scale-95 transition-all text-sm"
               >
-                {showModal.type === "missing-points" ? "Continue Anyway" : splitMode === "heading" ? "## দিয়ে Split" : "Split করুন"}
+                {showModal.type === "missing-points"
+                  ? "Continue Anyway"
+                  : splitMode === "heading"
+                    ? "## দিয়ে Split"
+                    : "Split করুন"}
               </button>
             </div>
           </div>

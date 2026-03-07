@@ -25,7 +25,10 @@ export const injectCoverIntoBlob = async (
   // ── Cover image path ──────────────────────────────────────────────────
   const existingCoverPath = Object.keys(content.files).find((p) => {
     const lp = p.toLowerCase();
-    return lp.includes("cover") && (lp.endsWith(".jpg") || lp.endsWith(".jpeg") || lp.endsWith(".png"));
+    return (
+      lp.includes("cover") &&
+      (lp.endsWith(".jpg") || lp.endsWith(".jpeg") || lp.endsWith(".png"))
+    );
   });
   const internalImgPath = existingCoverPath || `${opfDir}/Images/cover.jpg`;
   const coverHrefFromOpf = internalImgPath.replace(`${opfDir}/`, "");
@@ -39,7 +42,10 @@ export const injectCoverIntoBlob = async (
   const imgRelativeFromXhtml = (() => {
     const from = xhtmlDir.split("/");
     const to = internalImgPath.split("/");
-    while (from.length && to.length && from[0] === to[0]) { from.shift(); to.shift(); }
+    while (from.length && to.length && from[0] === to[0]) {
+      from.shift();
+      to.shift();
+    }
     return "../".repeat(from.length) + to.join("/");
   })();
 
@@ -50,7 +56,7 @@ export const injectCoverIntoBlob = async (
   const authorLine = authorName.trim()
     ? `\n<h3 style="text-align: center;">${authorName.trim()}</h3>`
     : "";
-  const endingBr = (titleLine || authorLine) ? `\n<br />` : "";
+  const endingBr = titleLine || authorLine ? `\n<br />` : "";
 
   const coverXhtml = `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
@@ -150,7 +156,7 @@ export const updateCoverXhtmlMetadata = async (
   const authorLine = authorName.trim()
     ? `\n<h3 style="text-align: center;">${authorName.trim()}</h3>`
     : "";
-  const endingBr = (titleLine || authorLine) ? `\n<br />` : "";
+  const endingBr = titleLine || authorLine ? `\n<br />` : "";
 
   coverXhtml = coverXhtml.replace(
     "</body>",
@@ -186,8 +192,8 @@ export const generatePreviewEpub = async (
   const opfContent = await content.file(opfPath)!.async("string");
 
   // ── Section0001 খোঁজা ────────────────────────────────────────────────
-  const section0001Path = Object.keys(content.files).find((p) =>
-    p.includes("Section0001.xhtml") || p.includes("section0001.xhtml")
+  const section0001Path = Object.keys(content.files).find(
+    (p) => p.includes("Section0001.xhtml") || p.includes("section0001.xhtml"),
   );
   if (!section0001Path) throw new Error("Section0001.xhtml not found!");
 
@@ -205,7 +211,7 @@ export const generatePreviewEpub = async (
     ? lastP[0].replace(
         // </p> এর আগের trailing punctuation সরিয়ে ...... যোগ
         /([।,!?'"'"'""…\s]+)(<\/p>)$/,
-        "......$2"
+        "......$2",
       )
     : "<p>......</p>";
 

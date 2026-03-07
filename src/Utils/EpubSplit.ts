@@ -2,26 +2,106 @@ import JSZip from "jszip";
 
 const BENGALI_NUM_WORDS = [
   "",
-  "এক", "দুই", "তিন", "চার", "পাঁচ",
-  "ছয়", "সাত", "আট", "নয়", "দশ",
-  "এগারো", "বারো", "তেরো", "চৌদ্দ", "পনেরো",
-  "ষোলো", "সতেরো", "আঠারো", "উনিশ", "বিশ",
-  "একুশ", "বাইশ", "তেইশ", "চব্বিশ", "পঁচিশ",
-  "ছাব্বিশ", "সাতাশ", "আটাশ", "ঊনত্রিশ", "ত্রিশ",
-  "একত্রিশ", "বত্রিশ", "তেত্রিশ", "চৌত্রিশ", "পঁয়ত্রিশ",
-  "ছত্রিশ", "সাতত্রিশ", "আটত্রিশ", "ঊনচল্লিশ", "চল্লিশ",
-  "একচল্লিশ", "বিয়াল্লিশ", "তেতাল্লিশ", "চৌচল্লিশ", "পঁয়তাল্লিশ",
-  "ছেচল্লিশ", "সাতচল্লিশ", "আটচল্লিশ", "ঊনপঞ্চাশ", "পঞ্চাশ",
-  "একান্ন", "বায়ান্ন", "তিপান্ন", "চুয়ান্ন", "পঞ্চান্ন",
-  "ছাপান্ন", "সাতান্ন", "আটান্ন", "ঊনষাট", "ষাট",
-  "একষট্টি", "বাষট্টি", "তেষট্টি", "চৌষট্টি", "পঁয়ষট্টি",
-  "ছেষট্টি", "সাতষট্টি", "আটষট্টি", "ঊনসত্তর", "সত্তর",
-  "একাত্তর", "বাহাত্তর", "তেহাত্তর", "চুয়াত্তর", "পঁচাত্তর",
-  "ছিয়াত্তর", "সাতাত্তর", "আটাত্তর", "ঊনআশি", "আশি",
-  "একাশি", "বিরাশি", "তিরাশি", "চুরাশি", "পঁচাশি",
-  "ছিয়াশি", "সাতাশি", "আটাশি", "ঊননব্বই", "নব্বই",
-  "একানব্বই", "বিরানব্বই", "তিরানব্বই", "চুরানব্বই", "পঁচানব্বই",
-  "ছিয়ানব্বই", "সাতানব্বই", "আটানব্বই", "নিরানব্বই", "একশ",
+  "এক",
+  "দুই",
+  "তিন",
+  "চার",
+  "পাঁচ",
+  "ছয়",
+  "সাত",
+  "আট",
+  "নয়",
+  "দশ",
+  "এগারো",
+  "বারো",
+  "তেরো",
+  "চৌদ্দ",
+  "পনেরো",
+  "ষোলো",
+  "সতেরো",
+  "আঠারো",
+  "উনিশ",
+  "বিশ",
+  "একুশ",
+  "বাইশ",
+  "তেইশ",
+  "চব্বিশ",
+  "পঁচিশ",
+  "ছাব্বিশ",
+  "সাতাশ",
+  "আটাশ",
+  "ঊনত্রিশ",
+  "ত্রিশ",
+  "একত্রিশ",
+  "বত্রিশ",
+  "তেত্রিশ",
+  "চৌত্রিশ",
+  "পঁয়ত্রিশ",
+  "ছত্রিশ",
+  "সাঁইত্রিশ",
+  "আটত্রিশ",
+  "ঊনচল্লিশ",
+  "চল্লিশ",
+  "একচল্লিশ",
+  "বিয়াল্লিশ",
+  "তেতাল্লিশ",
+  "চুয়াল্লিশ",
+  "পঁয়তাল্লিশ",
+  "ছেচল্লিশ",
+  "সাতচল্লিশ",
+  "আটচল্লিশ",
+  "ঊনপঞ্চাশ",
+  "পঞ্চাশ",
+  "একান্ন",
+  "বায়ান্ন",
+  "তিপান্ন",
+  "চুয়ান্ন",
+  "পঞ্চান্ন",
+  "ছাপান্ন",
+  "সাতান্ন",
+  "আটান্ন",
+  "ঊনষাট",
+  "ষাট",
+  "একষট্টি",
+  "বাষট্টি",
+  "তেষট্টি",
+  "চৌষট্টি",
+  "পঁয়ষট্টি",
+  "ছেষট্টি",
+  "সাতষট্টি",
+  "আটষট্টি",
+  "ঊনসত্তর",
+  "সত্তর",
+  "একাত্তর",
+  "বাহাত্তর",
+  "তেহাত্তর",
+  "চুয়াত্তর",
+  "পঁচাত্তর",
+  "ছিয়াত্তর",
+  "সাতাত্তর",
+  "আটাত্তর",
+  "ঊনআশি",
+  "আশি",
+  "একাশি",
+  "বিরাশি",
+  "তিরাশি",
+  "চুরাশি",
+  "পঁচাশি",
+  "ছিয়াশি",
+  "সাতাশি",
+  "আটাশি",
+  "ঊননব্বই",
+  "নব্বই",
+  "একানব্বই",
+  "বিরানব্বই",
+  "তিরানব্বই",
+  "চুরানব্বই",
+  "পঁচানব্বই",
+  "ছিয়ানব্বই",
+  "সাতানব্বই",
+  "আটানব্বই",
+  "নিরানব্বই",
+  "একশ",
 ];
 
 const TARGET_XHTML = "main.xhtml";
@@ -39,7 +119,11 @@ const cleanQuotes = (html: string) => {
 
 export const processAndSplitEpub = async (
   originalFile: File,
-  splitConfig: { isManual: boolean; count: number; mode?: "auto" | "manual" | "heading" },
+  splitConfig: {
+    isManual: boolean;
+    count: number;
+    mode?: "auto" | "manual" | "heading";
+  },
 ): Promise<Blob> => {
   const zip = new JSZip();
   const content = await zip.loadAsync(await originalFile.arrayBuffer());
@@ -94,7 +178,6 @@ export const processAndSplitEpub = async (
     }
     // শেষ chunk
     flush(currentTitle, currentHtml, isFirst && !currentTitle);
-
   } else if (splitConfig.isManual) {
     // ১. ২. ৩. এবং ## দুটো pattern একসাথে handle করা
     const paragraphs = bodyContent.split(/(?=<p)/g);
@@ -116,9 +199,10 @@ export const processAndSplitEpub = async (
 
       if (numericMatch) {
         // আগের chunk flush
-        const title = isFirstChunk && counter === 0
-          ? ""
-          : pendingTitle || `পর্ব-${BENGALI_NUM_WORDS[counter] || counter}`;
+        const title =
+          isFirstChunk && counter === 0
+            ? ""
+            : pendingTitle || `পর্ব-${BENGALI_NUM_WORDS[counter] || counter}`;
         flushPart(title, currentHtml, isFirstChunk && counter === 0);
         counter++;
         currentHtml = "";
@@ -126,9 +210,10 @@ export const processAndSplitEpub = async (
         isFirstChunk = false;
       } else if (headingMatch) {
         // আগের chunk flush
-        const title = isFirstChunk && counter === 0
-          ? ""
-          : pendingTitle || `পর্ব-${BENGALI_NUM_WORDS[counter] || counter}`;
+        const title =
+          isFirstChunk && counter === 0
+            ? ""
+            : pendingTitle || `পর্ব-${BENGALI_NUM_WORDS[counter] || counter}`;
         flushPart(title, currentHtml, isFirstChunk && counter === 0);
         counter++;
         currentHtml = "";
@@ -140,16 +225,18 @@ export const processAndSplitEpub = async (
     }
 
     // শেষ chunk flush
-    const lastTitle = isFirstChunk && counter === 0
-      ? ""
-      : pendingTitle || `পর্ব-${BENGALI_NUM_WORDS[counter] || counter}`;
+    const lastTitle =
+      isFirstChunk && counter === 0
+        ? ""
+        : pendingTitle || `পর্ব-${BENGALI_NUM_WORDS[counter] || counter}`;
     flushPart(lastTitle, currentHtml, isFirstChunk && counter === 0);
-
   } else {
     const totalWords = bodyContent.replace(/<[^>]*>/g, "").split(/\s+/).length;
     const wordsPerFile = Math.floor(totalWords / splitConfig.count);
     const paragraphs = bodyContent.split(/(?=<p)/g);
-    let currentHtml = "", currentWords = 0, idx = 1;
+    let currentHtml = "",
+      currentWords = 0,
+      idx = 1;
 
     paragraphs.forEach((p) => {
       const pWords = p.replace(/<[^>]*>/g, "").split(/\s+/).length;
@@ -184,7 +271,10 @@ export const processAndSplitEpub = async (
   let realSectionCounter = 0; // intro ছাড়া real section count
 
   // শেষ non-intro part এর index বের করা
-  const lastRealIndex = finalParts.reduce((last, p, i) => (!p.isIntro ? i : last), -1);
+  const lastRealIndex = finalParts.reduce(
+    (last, p, i) => (!p.isIntro ? i : last),
+    -1,
+  );
 
   finalParts.forEach((part, partIndex) => {
     // ✅ intro → Section0000, real parts → Section0001, Section0002...
