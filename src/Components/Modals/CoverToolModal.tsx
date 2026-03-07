@@ -336,7 +336,7 @@ export const CoverToolModal = ({
           <p
             className={`text-[10px] font-bold uppercase tracking-widest ${t.textMuted}`}
           >
-            Cover · Thumbnail · MozJPEG
+            Cover · Thumbnail
           </p>
         </div>
         <button
