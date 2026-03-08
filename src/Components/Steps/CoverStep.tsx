@@ -220,11 +220,10 @@ const CoverStep = () => {
   // Background preview color
   const bgPreviewColor = coverConfig.logoColor === "white" ? "#4b9dd3" : "#ffffff";
 
-  // ── Shared controls component (used in both mobile and desktop) ──────────
-  const Controls = () => (
+  // controls JSX — inline করা হয়েছে, inner component হিসেবে না
+  // কারণ inner component হলে range drag কাজ করে না (re-render এ unmount হয়)
+  const controlsJSX = (
     <div className="flex flex-col gap-4">
-
-      {/* Logo Style + Position — 2x2 grid on mobile */}
       <div className="grid grid-cols-2 gap-2">
         {(["blue", "white"] as const).map((color) => (
           <button
@@ -259,7 +258,6 @@ const CoverStep = () => {
         ))}
       </div>
 
-      {/* Add Background */}
       <button
         onClick={() => updateConfig({ addBackground: !coverConfig.addBackground })}
         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all text-left ${
@@ -284,7 +282,6 @@ const CoverStep = () => {
         )}
       </button>
 
-      {/* Logo Size */}
       <div>
         <div className="flex justify-between items-center mb-2">
           <p className={`flex items-center gap-1.5 text-[10px] font-black ${t.textMuted} uppercase tracking-widest`}>
@@ -301,7 +298,6 @@ const CoverStep = () => {
         />
       </div>
 
-      {/* Margin */}
       <div>
         <div className="flex justify-between items-center mb-2">
           <p className={`flex items-center gap-1.5 text-[10px] font-black ${t.textMuted} uppercase tracking-widest`}>
@@ -318,7 +314,6 @@ const CoverStep = () => {
         />
       </div>
 
-      {/* Download Thumbnail */}
       <button
         onClick={handleDownloadThumbnail}
         disabled={!previewUrl || isGenerating}
@@ -377,7 +372,7 @@ const CoverStep = () => {
         </div>
 
         {/* Mobile controls */}
-        <Controls />
+        {controlsJSX}
       </div>
 
       {/* ── Desktop: side by side ── */}
@@ -436,7 +431,7 @@ const CoverStep = () => {
 
         {/* Right: Controls */}
         <div className="flex flex-col gap-5 h-full">
-          <Controls />
+          {controlsJSX}
         </div>
       </div>
     </div>
